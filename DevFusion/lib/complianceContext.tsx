@@ -10,7 +10,7 @@ import {
   BoundingBox,
   DetectedDeclaration,
   KPIStats,
-} from '@/types/compliance';
+} from '@/types';
 import {
   INITIAL_KPI_STATS,
   RECENT_SCANS,

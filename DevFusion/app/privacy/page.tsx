@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AppShell } from '@/components/layout/AppShell';
+import React from "react";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function PrivacyPage() {
   return (
@@ -15,11 +15,18 @@ export default function PrivacyPage() {
         </p>
         <div className="space-y-4 text-xs text-on-surface leading-relaxed">
           <p>
-            The SIH034 Packaged Commodity Compliance Platform is committed to maintaining the confidentiality and integrity of product labels, proprietary artwork, and manufacturing metadata processed through our neural OCR system.
+            LabelGuard AI is committed to maintaining the confidentiality and
+            integrity of product labels, proprietary artwork, and manufacturing
+            metadata processed through our neural OCR system.
           </p>
-          <h3 className="text-sm font-bold text-on-surface mt-4">Data Processing</h3>
+          <h3 className="text-sm font-bold text-on-surface mt-4">
+            Data Processing
+          </h3>
           <p>
-            Label images are analyzed transiently for text entity extraction and Legal Metrology rule matching. No proprietary recipes or non-public manufacturing specifications are stored beyond statutory audit log requirements.
+            Label images are analyzed transiently for text entity extraction and
+            Legal Metrology rule matching. No proprietary recipes or non-public
+            manufacturing specifications are stored beyond statutory audit log
+            requirements.
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AppShell } from '@/components/layout/AppShell';
+import React from "react";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function TermsPage() {
   return (
@@ -15,11 +15,17 @@ export default function TermsPage() {
         </p>
         <div className="space-y-4 text-xs text-on-surface leading-relaxed">
           <p>
-            By using the SIH034 Compliance Platform, you acknowledge that AI-assisted screenings serve as decision-support tooling and do not replace formal statutory adjudications by appointed Controllers of Legal Metrology.
+            By using LabelGuard AI, you acknowledge that AI-assisted screenings
+            serve as decision-support tooling and do not replace formal
+            statutory adjudications by appointed Controllers of Legal Metrology.
           </p>
-          <h3 className="text-sm font-bold text-on-surface mt-4">Statutory Disclaimers</h3>
+          <h3 className="text-sm font-bold text-on-surface mt-4">
+            Statutory Disclaimers
+          </h3>
           <p>
-            The rule engine matches codified standards under the Legal Metrology Act, 2009 and the Legal Metrology (Packaged Commodities) Rules, 2011. Users remain responsible for packaging veracity.
+            The rule engine matches codified standards under the Legal Metrology
+            Act, 2009 and the Legal Metrology (Packaged Commodities) Rules,
+            2011. Users remain responsible for packaging veracity.
           </p>
         </div>
       </div>

@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'SIH034 - Packaged Commodity Compliance Platform',
+  title: 'LabelGuard AI - Packaged Commodity Compliance Platform',
   description:
     'AI-assisted label screening and evidence-based compliance checking under Legal Metrology (Packaged Commodities) Rules.',
 };

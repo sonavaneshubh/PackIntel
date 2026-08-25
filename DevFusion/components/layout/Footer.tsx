@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className="w-full py-4 px-6 flex flex-col sm:flex-row justify-between items-center text-body-sm font-body-sm mt-auto bg-surface border-t border-outline-variant text-secondary gap-3">
       <div className="font-label-bold text-xs">
-        © 2024–2026 SIH034 Compliance Platform
+        © 2024–2026 LabelGuard AI
       </div>
       <div className="flex flex-wrap gap-4 text-xs">
         <Link

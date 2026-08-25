@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
-import { RULE_DATABASE_ITEMS } from '@/lib/mockData';
+import { complianceRules } from '@/lib/constants/complianceRules';
 
 export default function RulesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredRules = RULE_DATABASE_ITEMS.filter(
+  const filteredRules = complianceRules.filter(
     (r) =>
       r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.clause.toLowerCase().includes(searchQuery.toLowerCase()) ||
