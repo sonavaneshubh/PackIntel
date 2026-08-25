@@ -1,0 +1,191 @@
+{
+  "projects": [
+    {
+      "name": "projects/6874572683199449301",
+      "title": "Packaged Commodity Compliance Platform",
+      "visibility": "PRIVATE",
+      "createTime": "2026-08-25T09:34:46.581482Z",
+      "updateTime": "2026-08-25T09:43:50.597592Z",
+      "projectType": "TEXT_TO_UI_PRO",
+      "thumbnailScreenshot": {
+        "name": "projects/6874572683199449301/screens/4c2255e3ed7b4db9bc6056243f59ec0c/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1X-p6arLSshTihFxwdeyIKL4VMEWfSOWZQwNX203o90tfDEQrMtS6SZW6FQhKjgj51cef166NwKkufo9_SK3M_UOtI9Vu0e-pqUuI9dQMbVCOD2RlshuKVHjCEn-p-IvrzyIa6k53Jv7ct2D2K-da_DoMZkQaN_YQukpYbBT98r7WZ-aHMDuX6RnIvr6wOO3cFzuqZI3TdHnF-MhNspjPfMz7SN09X4avJS6c7oux2bAY2dRnHlXrYERoE"
+      },
+      "origin": "STITCH",
+      "deviceType": "DESKTOP",
+      "designTheme": {
+        "colorMode": "LIGHT",
+        "font": "INTER",
+        "roundness": "ROUND_EIGHT",
+        "customColor": "#1a73e8",
+        "headlineFont": "INTER",
+        "bodyFont": "INTER",
+        "labelFont": "INTER",
+        "namedColors": {
+          "tertiary": "#4f5f75",
+          "error": "#ba1a1a",
+          "secondary_fixed": "#dde1ff",
+          "on_tertiary_fixed_variant": "#38485d",
+          "inverse_primary": "#adc7ff",
+          "background": "#f8f9fa",
+          "tertiary_fixed": "#d3e4fe",
+          "on_surface": "#191c1d",
+          "surface_container": "#edeeef",
+          "on_error": "#ffffff",
+          "primary": "#005bbf",
+          "on_tertiary": "#ffffff",
+          "outline": "#727785",
+          "tertiary_fixed_dim": "#b7c8e1",
+          "outline_variant": "#c1c6d6",
+          "on_primary_fixed_variant": "#004493",
+          "on_secondary_container": "#5c617c",
+          "secondary_container": "#dadefd",
+          "inverse_surface": "#2e3132",
+          "on_primary_fixed": "#001a41",
+          "secondary": "#585d77",
+          "primary_fixed_dim": "#adc7ff",
+          "on_secondary_fixed_variant": "#41455f",
+          "surface": "#f8f9fa",
+          "surface_container_low": "#f3f4f5",
+          "surface_bright": "#f8f9fa",
+          "on_primary_container": "#ffffff",
+          "surface_container_high": "#e7e8e9",
+          "on_surface_variant": "#414754",
+          "on_secondary_fixed": "#151a31",
+          "on_secondary": "#ffffff",
+          "on_background": "#191c1d",
+          "surface_container_lowest": "#ffffff",
+          "surface_tint": "#005bc0",
+          "secondary_fixed_dim": "#c1c5e3",
+          "on_error_container": "#93000a",
+          "inverse_on_surface": "#f0f1f2",
+          "on_tertiary_fixed": "#0b1c30",
+          "on_tertiary_container": "#000510",
+          "primary_fixed": "#d8e2ff",
+          "on_primary": "#ffffff",
+          "primary_container": "#1a73e8",
+          "tertiary_container": "#68788f",
+          "error_container": "#ffdad6",
+          "surface_variant": "#e1e3e4",
+          "surface_dim": "#d9dadb",
+          "surface_container_highest": "#e1e3e4"
+        },
+        "designMd": "---\nname: Regulatory Integrity Interface\ncolors:\n  surface: '#f8f9fa'\n  surface-dim: '#d9dadb'\n  surface-bright: '#f8f9fa'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f3f4f5'\n  surface-container: '#edeeef'\n  surface-container-high: '#e7e8e9'\n  surface-container-highest: '#e1e3e4'\n  on-surface: '#191c1d'\n  on-surface-variant: '#414754'\n  inverse-surface: '#2e3132'\n  inverse-on-surface: '#f0f1f2'\n  outline: '#727785'\n  outline-variant: '#c1c6d6'\n  surface-tint: '#005bc0'\n  primary: '#005bbf'\n  on-primary: '#ffffff'\n  primary-container: '#1a73e8'\n  on-primary-container: '#ffffff'\n  inverse-primary: '#adc7ff'\n  secondary: '#585d77'\n  on-secondary: '#ffffff'\n  secondary-container: '#dadefd'\n  on-secondary-container: '#5c617c'\n  tertiary: '#4f5f75'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#68788f'\n  on-tertiary-container: '#000510'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#d8e2ff'\n  primary-fixed-dim: '#adc7ff'\n  on-primary-fixed: '#001a41'\n  on-primary-fixed-variant: '#004493'\n  secondary-fixed: '#dde1ff'\n  secondary-fixed-dim: '#c1c5e3'\n  on-secondary-fixed: '#151a31'\n  on-secondary-fixed-variant: '#41455f'\n  tertiary-fixed: '#d3e4fe'\n  tertiary-fixed-dim: '#b7c8e1'\n  on-tertiary-fixed: '#0b1c30'\n  on-tertiary-fixed-variant: '#38485d'\n  background: '#f8f9fa'\n  on-background: '#191c1d'\n  surface-variant: '#e1e3e4'\ntypography:\n  display-lg:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '700'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  display-lg-mobile:\n    fontFamily: Inter\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n  headline-md:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '600'\n    lineHeight: 28px\n  body-base:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 13px\n    fontWeight: '400'\n    lineHeight: 18px\n  label-bold:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\n  data-tabular:\n    fontFamily: Inter\n    fontSize: 13px\n    fontWeight: '500'\n    lineHeight: 18px\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  sidebar_width: 260px\n  container_margin: 24px\n  gutter: 16px\n  stack_sm: 8px\n  stack_md: 16px\n  stack_lg: 24px\n---\n\n## Brand & Style\nThis design system is engineered for high-stakes government-tech and enterprise compliance environments. The brand personality is **authoritative, transparent, and evidence-based**, prioritizing clarity of information over decorative flair. \n\nThe aesthetic follows a **Corporate Modern** approach with a focus on high information density and \"trust signals.\" It utilizes a structured systematic layout, precise alignment, and a sober color palette to evoke a sense of legal-grade reliability and procedural rigor. The interface remains neutral to allow critical compliance statuses (Pass/Fail/Review) to emerge as the primary visual focus.\n\n## Colors\nThe palette is rooted in \"Professional Blue\" to establish institutional trust. \n\n- **Primary & Secondary:** Used for navigational anchors and primary actions.\n- **Surface & Background:** A tiered neutral system using white (#FFFFFF) for interactive cards and light gray (#F8F9FA) for the application canvas to reduce eye strain during prolonged auditing sessions.\n- **Semantic Logic:** These colors are reserved strictly for status-driven data. Green, Amber, and Red are utilized for \"Pass\", \"Needs Review\", and \"Non-Compliance\" respectively, ensuring immediate cognitive recognition of urgency.\n\n## Typography\nInter is used across all levels for its exceptional legibility in data-heavy contexts. \n\n- **Hierarchy:** Page titles utilize bold weights with slight negative letter-spacing for a modern, authoritative feel. \n- **Data Density:** Body text is set to 14px (base) to allow for the dense presentation of commodity specifications and regulatory clauses. \n- **Labels:** Small, semi-bold caps are used for metadata and table headers to distinguish structural labels from user-generated data.\n\n## Layout & Spacing\nThe layout employs a **Persistent Left Sidebar** model to facilitate rapid switching between compliance modules (e.g., Packaging Standards, Net Weight Verification, Labeling Requirements).\n\n- **Grid:** A 12-column fluid grid system is used within the main content area.\n- **Density:** We utilize \"Enterprise Density,\" where vertical rhythm is tight (8px increments) to minimize scrolling during data entry and audit reviews. \n- **Breakpoints:**\n    - **Desktop (1440px+):** Sidebar expanded, 3-column dashboard widgets.\n    - **Tablet (768px-1024px):** Sidebar collapses to icons; margins reduce to 16px.\n    - **Mobile (<768px):** Sidebar becomes a hidden drawer; tables transition to card-list views.\n\n## Elevation & Depth\nDepth is signaled through **Tonal Layering** and **Low-Contrast Outlines** rather than aggressive shadows.\n\n1.  **Canvas (Level 0):** The background (#F8F9FA).\n2.  **Surface (Level 1):** Main cards and content containers. These use a 1px border (#E2E8F0) and a very soft, diffused shadow (0px 2px 4px rgba(0,0,0,0.05)) to distinguish them from the background.\n3.  **Overlays (Level 2):** Modals and dropdowns use a more pronounced shadow to indicate temporary focus.\n\nAvoid glassmorphism or blur effects to maintain maximum legibility and professional rigor.\n\n## Shapes\nThe design system utilizes **Rounded** (Level 2) geometry. \n\n- **Standard Elements:** Input fields, buttons, and status badges use an 8px radius (rounded-lg).\n- **Cards:** Larger containers use a 12px radius (rounded-xl) to provide a premium, modern feel.\n- **Pills:** Status indicators use a full pill radius to differentiate them from interactive buttons.\n\n## Components\n\n### Sidebar\n- **Width:** 260px.\n- **Style:** Light background (#F1F5F9 or similar subtle blue-gray). \n- **Active State:** A 4px vertical blue line on the left edge, with the text color shifting to Primary Blue.\n\n### Tables (Audit Logs & Commodity Lists)\n- **Header:** Light gray background (#F8F9FA) with uppercase label-bold typography.\n- **Rows:** 48px height for high density. Subtle horizontal dividers only.\n- **Cells:** Use `data-tabular` font for alignment and clarity.\n\n### Status Badges\n- **Shape:** Pill-shaped.\n- **Visual:** Low-saturation background tints (e.g., 10% opacity of the semantic color) with high-saturation text and a 12px leading icon.\n\n### Buttons\n- **Primary:** Solid #1A73E8 with white text.\n- **Secondary:** White background with #E2E8F0 border and dark navy text.\n- **Tertiary/Ghost:** No border, used for \"Cancel\" or secondary actions in a list.\n\n### Input Fields\n- **Default:** 1px border (#E2E8F0).\n- **Focus:** 2px solid #1A73E8 with a soft 2px blue glow (ring).\n- **Labeling:** Always persistent above the field; never use placeholders as labels.\n\n### Data Visualization\n- Graphs and progress rings should use the semantic palette. A \"Compliance Score\" ring should dynamically change color based on the PASS/REVIEW/NON-COMPLIANCE thresholds.",
+        "colorVariant": "FIDELITY",
+        "overridePrimaryColor": "#1a73e8",
+        "overrideSecondaryColor": "#1a1f36",
+        "overrideTertiaryColor": "#64748b",
+        "overrideNeutralColor": "#f8f9fa",
+        "spacingScale": 2,
+        "typography": {
+          "data-tabular": {
+            "fontFamily": "Inter",
+            "fontSize": "13px",
+            "fontWeight": "500",
+            "lineHeight": "18px"
+          },
+          "headline-md": {
+            "fontFamily": "Inter",
+            "fontSize": "20px",
+            "fontWeight": "600",
+            "lineHeight": "28px"
+          },
+          "display-lg-mobile": {
+            "fontFamily": "Inter",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32px"
+          },
+          "label-bold": {
+            "fontFamily": "Inter",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "lineHeight": "16px",
+            "letterSpacing": "0.05em"
+          },
+          "body-sm": {
+            "fontFamily": "Inter",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "lineHeight": "18px"
+          },
+          "display-lg": {
+            "fontFamily": "Inter",
+            "fontSize": "32px",
+            "fontWeight": "700",
+            "lineHeight": "40px",
+            "letterSpacing": "-0.02em"
+          },
+          "body-base": {
+            "fontFamily": "Inter",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px"
+          }
+        },
+        "spacing": {
+          "sidebar_width": "260px",
+          "stack_md": "16px",
+          "stack_lg": "24px",
+          "container_margin": "24px",
+          "gutter": "16px",
+          "stack_sm": "8px"
+        },
+        "headlineFontFamily": "Inter",
+        "bodyFontFamily": "Inter",
+        "labelFontFamily": "Inter"
+      },
+      "screenInstances": [
+        {
+          "id": "assets_0f2a8195530c47f789babe4e3db60930",
+          "width": 960,
+          "height": 540,
+          "sourceAsset": "assets/0f2a8195530c47f789babe4e3db60930",
+          "type": "DESIGN_SYSTEM_INSTANCE"
+        },
+        {
+          "id": "4c2255e3ed7b4db9bc6056243f59ec0c",
+          "sourceScreen": "projects/6874572683199449301/screens/4c2255e3ed7b4db9bc6056243f59ec0c",
+          "x": 1920,
+          "y": -1094,
+          "width": 1280,
+          "height": 1024
+        },
+        {
+          "id": "18bd2c9142f34a9bae4ee16b186b1dba",
+          "sourceScreen": "projects/6874572683199449301/screens/18bd2c9142f34a9bae4ee16b186b1dba",
+          "x": 3307,
+          "y": -509,
+          "width": 1280,
+          "height": 1024
+        },
+        {
+          "id": "af95925d9b214440957750cb83f2ef80",
+          "sourceScreen": "projects/6874572683199449301/screens/af95925d9b214440957750cb83f2ef80",
+          "x": 1904,
+          "y": -18,
+          "width": 1280,
+          "height": 1158
+        },
+        {
+          "id": "71d82e2d3fea4a97a0ff26916996f354",
+          "sourceScreen": "projects/6874572683199449301/screens/71d82e2d3fea4a97a0ff26916996f354",
+          "x": 4651,
+          "width": 1280,
+          "height": 1024
+        },
+        {
+          "id": "7653d5ea3a59423e8edb77e29969b063",
+          "sourceScreen": "projects/6874572683199449301/screens/7653d5ea3a59423e8edb77e29969b063",
+          "x": 4635,
+          "y": -1171,
+          "width": 1280,
+          "height": 1024
+        }
+      ],
+      "metadata": {
+        "userRole": "OWNER"
+      }
+    }
+  ]
+}

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIH034 - OCR Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#005bbf",
+                      "on-secondary-fixed": "#151a31",
+                      "on-secondary-container": "#5c617c",
+                      "background": "#f8f9fa",
+                      "outline": "#727785",
+                      "on-primary-container": "#ffffff",
+                      "on-tertiary-container": "#000510",
+                      "surface-container-high": "#e7e8e9",
+                      "surface-dim": "#d9dadb",
+                      "tertiary-container": "#68788f",
+                      "on-primary": "#ffffff",
+                      "surface-container-highest": "#e1e3e4",
+                      "surface-tint": "#005bc0",
+                      "inverse-surface": "#2e3132",
+                      "error-container": "#ffdad6",
+                      "secondary": "#585d77",
+                      "tertiary-fixed-dim": "#b7c8e1",
+                      "surface-container-low": "#f3f4f5",
+                      "surface": "#f8f9fa",
+                      "secondary-fixed-dim": "#c1c5e3",
+                      "on-tertiary-fixed-variant": "#38485d",
+                      "inverse-primary": "#adc7ff",
+                      "tertiary": "#4f5f75",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-container": "#1a73e8",
+                      "on-primary-fixed": "#001a41",
+                      "on-secondary": "#ffffff",
+                      "on-primary-fixed-variant": "#004493",
+                      "secondary-container": "#dadefd",
+                      "surface-variant": "#e1e3e4",
+                      "primary-fixed-dim": "#adc7ff",
+                      "tertiary-fixed": "#d3e4fe",
+                      "on-error-container": "#93000a",
+                      "inverse-on-surface": "#f0f1f2",
+                      "primary-fixed": "#d8e2ff",
+                      "on-surface": "#191c1d",
+                      "on-secondary-fixed-variant": "#41455f",
+                      "on-surface-variant": "#414754",
+                      "on-tertiary-fixed": "#0b1c30",
+                      "surface-bright": "#f8f9fa",
+                      "on-background": "#191c1d",
+                      "on-error": "#ffffff",
+                      "secondary-fixed": "#dde1ff",
+                      "surface-container": "#edeeef",
+                      "outline-variant": "#c1c6d6",
+                      "on-tertiary": "#ffffff",
+                      "error": "#ba1a1a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "stack_sm": "8px",
+                      "stack_lg": "24px",
+                      "sidebar_width": "260px",
+                      "stack_md": "16px",
+                      "container_margin": "24px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Inter"],
+                      "data-tabular": ["Inter"],
+                      "label-bold": ["Inter"],
+                      "display-lg-mobile": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "body-base": ["Inter"],
+                      "body-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "data-tabular": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                      "label-bold": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "display-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                      "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-sans min-h-screen flex flex-col md:flex-row antialiased">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col w-sidebar_width h-screen fixed left-0 top-0 py-stack_lg z-40 bg-surface-container-low border-r border-outline-variant transition-transform duration-300 transform -translate-x-full md:translate-x-0" id="sidebar">
+<div class="px-gutter mb-8 flex justify-between items-center">
+<div>
+<h1 class="text-headline-md font-headline-md font-black text-primary">SIH034</h1>
+<p class="text-body-sm font-body-sm text-on-surface-variant">Compliance Engine v1.0</p>
+</div>
+<button class="md:hidden text-on-surface" id="closeSidebar">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<ul class="flex-1 flex flex-col gap-1 px-2">
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-label-bold font-label-bold">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="barcode_scanner">barcode_scanner</span>
+<span class="text-label-bold font-label-bold">New Scan</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="text-label-bold font-label-bold">Scan History</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-primary bg-surface-container-highest border-l-4 border-primary px-4 py-3 rounded-r" href="#">
+<span class="material-symbols-outlined fill" data-icon="assignment_turned_in">assignment_turned_in</span>
+<span class="text-label-bold font-label-bold">Compliance Results</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="gavel">gavel</span>
+<span class="text-label-bold font-label-bold">Rule Database</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-label-bold font-label-bold">Reports</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="text-label-bold font-label-bold">Analytics</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-label-bold font-label-bold">Settings</span>
+</a>
+</li>
+</ul>
+<ul class="mt-auto px-2 border-t border-outline-variant pt-4">
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="text-label-bold font-label-bold">Support</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack_sm text-on-surface-variant px-4 py-3 hover:bg-surface-container-high hover:text-primary transition-all rounded" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="text-label-bold font-label-bold">Sign Out</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-sidebar_width min-h-screen">
+<!-- TopNavBar (Mobile only for sidebar toggle) -->
+<header class="md:hidden sticky top-0 z-50 flex justify-between items-center w-full px-gutter h-16 bg-surface border-b border-outline-variant shadow-sm">
+<button class="text-on-surface-variant" id="openSidebar">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="text-headline-md font-headline-md font-bold text-primary">SIH034</h1>
+<div class="flex gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</div>
+</header>
+<main class="flex-1 p-container_margin">
+<header class="mb-stack_lg">
+<h2 class="text-display-lg-mobile md:text-display-lg font-display-lg-mobile md:font-display-lg text-on-surface mb-2">OCR Extraction &amp; Identification</h2>
+<p class="text-body-base font-body-base text-on-surface-variant">Review raw text extraction and entity mapping from the product label.</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-stack_lg mb-stack_lg">
+<!-- Left Column: Product Label Image with Bounding Boxes -->
+<div class="bg-surface border border-outline-variant rounded-lg p-stack_md shadow-sm flex flex-col h-full">
+<h3 class="text-headline-md font-headline-md text-on-surface mb-stack_md border-b border-outline-variant pb-2">Label Scan</h3>
+<div class="relative flex-1 bg-surface-container-low rounded border border-outline-variant overflow-hidden min-h-[400px]">
+<!-- Image -->
+<img class="w-full h-full object-cover absolute inset-0" data-alt="A high-resolution photograph of a packaged food product label, flat and brightly lit in a studio setting. The label shows various text elements like MRP, Net Quantity, and Manufacturer details. The image has a technical, analytical overlay aesthetic suitable for an enterprise compliance application, with a light gray and blue corporate color scheme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAU3ranM15SAG_xqt-7ZZy8BMMvqB08Ft6RhHvCydF4Q7DVp9998gS_UfwsULXZsR61oZ-60LerbtvBe64CKZT9BDf-8eZbZJYhqGmiR4U37JvsEJm_L29j6eV2-KTLC4Zq_nKbd9Y5-rHIOHgePjWM9-UgXShaexL6P9VL_HU6RdRc2GC4bN9A-rLLDUE6JOSnwyNzS0CUigzx9Z-jOwhKDHbDTxrmXN5J3S4zrqaAXQphiJN3qs_"/>
+<!-- Overlay Bounding Boxes (Simulated) -->
+<div class="absolute inset-0 p-4">
+<!-- Box 1: MRP -->
+<div class="absolute top-[15%] left-[60%] w-24 h-8 border-2 border-primary bg-primary/20 rounded flex items-start justify-start cursor-pointer hover:bg-primary/30 transition-colors group">
+<div class="bg-primary text-on-primary text-[10px] font-label-bold px-1 py-0.5 absolute -top-5 left-0 rounded-t shadow-sm whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
+                                    MRP - 98%
+                                </div>
+</div>
+<!-- Box 2: Net Qty -->
+<div class="absolute top-[35%] left-[20%] w-32 h-10 border-2 border-teal-500 bg-teal-500/20 rounded flex items-start justify-start cursor-pointer hover:bg-teal-500/30 transition-colors group">
+<div class="bg-teal-500 text-white text-[10px] font-label-bold px-1 py-0.5 absolute -top-5 left-0 rounded-t shadow-sm whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
+                                    Net Qty - 96%
+                                </div>
+</div>
+<!-- Box 3: Manufacturer -->
+<div class="absolute top-[60%] left-[10%] w-48 h-16 border-2 border-indigo-500 bg-indigo-500/20 rounded flex items-start justify-start cursor-pointer hover:bg-indigo-500/30 transition-colors group">
+<div class="bg-indigo-500 text-white text-[10px] font-label-bold px-1 py-0.5 absolute -top-5 left-0 rounded-t shadow-sm whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
+                                    Manufacturer - 94%
+                                </div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Extracted Data Table -->
+<div class="bg-surface border border-outline-variant rounded-lg shadow-sm flex flex-col h-full overflow-hidden">
+<div class="p-stack_md border-b border-outline-variant bg-surface-container-lowest">
+<h3 class="text-headline-md font-headline-md text-on-surface">Extracted Entities</h3>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-bright border-b border-outline-variant">
+<th class="p-3 text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider">Entity</th>
+<th class="p-3 text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider">Extracted Value</th>
+<th class="p-3 text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-right">Confidence</th>
+</tr>
+</thead>
+<tbody class="text-data-tabular font-data-tabular text-on-surface divide-y divide-outline-variant bg-surface">
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group">
+<td class="p-3">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary group-hover:scale-125 transition-transform"></div>
+                                            MRP
+                                        </div>
+</td>
+<td class="p-3">₹120</td>
+<td class="p-3 text-right">
+<span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-[11px] px-2 py-0.5 rounded-full font-label-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                            98%
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group">
+<td class="p-3">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-teal-500 group-hover:scale-125 transition-transform"></div>
+                                            Net Quantity
+                                        </div>
+</td>
+<td class="p-3">500 g</td>
+<td class="p-3 text-right">
+<span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-[11px] px-2 py-0.5 rounded-full font-label-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                            96%
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group">
+<td class="p-3">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-indigo-500 group-hover:scale-125 transition-transform"></div>
+                                            Manufacturer
+                                        </div>
+</td>
+<td class="p-3">ABC Foods Pvt Ltd</td>
+<td class="p-3 text-right">
+<span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-[11px] px-2 py-0.5 rounded-full font-label-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                            94%
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group">
+<td class="p-3">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-orange-400 group-hover:scale-125 transition-transform"></div>
+                                            Packing Date
+                                        </div>
+</td>
+<td class="p-3">JUL 2026</td>
+<td class="p-3 text-right">
+<span class="inline-flex items-center gap-1 bg-orange-100 text-orange-800 text-[11px] px-2 py-0.5 rounded-full font-label-bold">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                                            82%
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group">
+<td class="p-3">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-blue-400 group-hover:scale-125 transition-transform"></div>
+                                            Consumer Care
+                                        </div>
+</td>
+<td class="p-3">1800-XXX-XXXX</td>
+<td class="p-3 text-right">
+<span class="inline-flex items-center gap-1 bg-green-100 text-green-800 text-[11px] px-2 py-0.5 rounded-full font-label-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                            91%
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex justify-between items-center mt-auto pt-stack_md border-t border-outline-variant">
+<button class="px-6 py-2 bg-surface text-on-surface border border-outline rounded-lg text-label-bold font-label-bold hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                    Back to Image
+                </button>
+<button class="px-6 py-2 bg-primary text-on-primary rounded-lg text-label-bold font-label-bold hover:bg-primary-fixed-variant transition-colors shadow-sm flex items-center gap-2">
+                    Review Declarations
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-stack_md px-gutter flex flex-col md:flex-row justify-between items-center text-body-sm font-body-sm bg-surface border-t border-outline-variant mt-auto">
+<div class="text-body-sm font-label-bold mb-2 md:mb-0">
+                © 2024 SIH034 Compliance Platform
+            </div>
+<div class="flex gap-4">
+<a class="text-on-secondary-container hover:text-primary underline transition-all duration-200" href="#">Rule Database v2.4.1</a>
+<a class="text-on-secondary-container hover:text-primary underline transition-all duration-200" href="#">Privacy Policy</a>
+<a class="text-on-secondary-container hover:text-primary underline transition-all duration-200" href="#">Terms of Service</a>
+</div>
+</footer>
+</div>
+<script>
+        // Simple mobile sidebar toggle
+        const openBtn = document.getElementById('openSidebar');
+        const closeBtn = document.getElementById('closeSidebar');
+        const sidebar = document.getElementById('sidebar');
+
+        if(openBtn && closeBtn && sidebar) {
+            openBtn.addEventListener('click', () => {
+                sidebar.classList.remove('-translate-x-full');
+            });
+            closeBtn.addEventListener('click', () => {
+                sidebar.classList.add('-translate-x-full');
+            });
+        }
+    </script>
+</body></html>
