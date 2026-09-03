@@ -6,14 +6,19 @@ class AIService:
     def extract_declarations(raw_text: str) -> Dict[str, Any]:
         """
         AI extraction service mapping OCR output into structured Legal Metrology declaration fields.
+        
+        Requires integration with an AI/LLM service (OpenAI, Anthropic, local model, etc.)
+        or a custom NLP pipeline.
+        
+        Raises:
+            NotImplementedError: If no AI provider is configured.
         """
-        return {
-            "manufacturer_name": "ABC Foods Pvt. Ltd.",
-            "manufacturer_address": "Industrial Area Phase-2, New Delhi",
-            "country_of_origin": "India",
-            "common_generic_name": "Premium Basmati Rice",
-            "net_quantity": "5 kg",
-            "mrp": "Rs. 450.00",
-            "mfg_date": "01/2026",
-            "consumer_care": "care@abcfoods.com, 1800-123-4567",
-        }
+        raise NotImplementedError(
+            "AI extraction service not configured. Please integrate with an AI/LLM service "
+            "(OpenAI, Anthropic, local model, etc.) and implement the extract_declarations method."
+        )
+
+
+def get_ai_service() -> AIService:
+    """Factory function to get configured AI service."""
+    return AIService()

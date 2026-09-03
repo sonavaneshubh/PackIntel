@@ -37,7 +37,7 @@ export function DashboardView() {
 
     setSelectedEvidence({
       id: `EVD-${scan.inspection_number}`,
-      productName: scan.product_name,
+      productName: scan.product_name ?? 'Unknown Product',
       attribute: 'Statutory Declarations',
       detectedValue: `Category: ${scan.category} | Manufacturer: ${scan.manufacturer}`,
       ocrConfidence: 95,
@@ -46,8 +46,8 @@ export function DashboardView() {
       detectedIssue: isFail
         ? 'Detected statutory compliance violation on product label.'
         : isReview
-        ? 'Ambiguous declaration or low confidence fields require manual review.'
-        : 'All statutory declarations verified compliant with Legal Metrology Rules.',
+          ? 'Ambiguous declaration or low confidence fields require manual review.'
+          : 'All statutory declarations verified compliant with Legal Metrology Rules.',
       explanation: 'Official screening record stored in Supabase database.',
       complianceStatus: isFail ? 'FAIL' : isReview ? 'REVIEW' : 'PASS',
       riskScore: scan.risk_score || (isFail ? 85 : isReview ? 50 : 10),
@@ -55,13 +55,13 @@ export function DashboardView() {
         (scan.risk_score || 0) >= 76
           ? 'CRITICAL'
           : (scan.risk_score || 0) >= 51
-          ? 'HIGH'
-          : 'LOW',
+            ? 'HIGH'
+            : 'LOW',
       riskReasons: isFail
         ? ['Detected statutory non-compliance in declarations']
         : isReview
-        ? ['Verification recommended before market dispatch']
-        : ['Statutory requirements fully satisfied'],
+          ? ['Verification recommended before market dispatch']
+          : ['Statutory requirements fully satisfied'],
       imageUrl:
         'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&auto=format&fit=crop&q=80',
       boundingRegion: {
@@ -492,19 +492,18 @@ export function DashboardView() {
                   <button
                     key={status}
                     onClick={() => setFilterStatus(status)}
-                    className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                      filterStatus === status
+                    className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${filterStatus === status
                         ? 'bg-primary text-on-primary shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-                    }`}
+                      }`}
                   >
                     {status === 'ALL'
                       ? 'All Scans'
                       : status === 'FAIL'
-                      ? 'Potential Non-Compliance'
-                      : status === 'REVIEW'
-                      ? 'Needs Review'
-                      : 'Compliant'}
+                        ? 'Potential Non-Compliance'
+                        : status === 'REVIEW'
+                          ? 'Needs Review'
+                          : 'Compliant'}
                   </button>
                 ))}
               </div>
@@ -554,10 +553,10 @@ export function DashboardView() {
                           scan.overall_result === 'pass'
                             ? 'PASS'
                             : scan.overall_result === 'review'
-                            ? 'REVIEW'
-                            : scan.overall_result === 'fail'
-                            ? 'FAIL'
-                            : 'DRAFT';
+                              ? 'REVIEW'
+                              : scan.overall_result === 'fail'
+                                ? 'FAIL'
+                                : 'DRAFT';
 
                         return (
                           <tr
@@ -595,15 +594,15 @@ export function DashboardView() {
                                   (statusBadge === 'FAIL'
                                     ? 85
                                     : statusBadge === 'REVIEW'
-                                    ? 50
-                                    : 10)
+                                      ? 50
+                                      : 10)
                                 }
                                 level={
                                   (scan.risk_score ?? 0) >= 76
                                     ? 'CRITICAL'
                                     : (scan.risk_score ?? 0) >= 51
-                                    ? 'HIGH'
-                                    : 'LOW'
+                                      ? 'HIGH'
+                                      : 'LOW'
                                 }
                                 showScore={true}
                               />
@@ -645,9 +644,8 @@ export function DashboardView() {
                     style={{
                       background:
                         stats.total > 0
-                          ? `conic-gradient(#22c55e 0% ${passPercentage}%, #fbbf24 ${passPercentage}% ${
-                              passPercentage + reviewPercentage
-                            }%, #ef4444 ${passPercentage + reviewPercentage}% 100%)`
+                          ? `conic-gradient(#22c55e 0% ${passPercentage}%, #fbbf24 ${passPercentage}% ${passPercentage + reviewPercentage
+                          }%, #ef4444 ${passPercentage + reviewPercentage}% 100%)`
                           : '#e2e8f0',
                     }}
                   >
@@ -666,11 +664,10 @@ export function DashboardView() {
                 <div className="mt-3 flex flex-col gap-1.5">
                   <button
                     onClick={() => setFilterStatus(filterStatus === 'PASS' ? 'ALL' : 'PASS')}
-                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${
-                      filterStatus === 'PASS'
+                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${filterStatus === 'PASS'
                         ? 'bg-green-50 font-bold'
                         : 'hover:bg-surface-container-low'
-                    }`}
+                      }`}
                   >
                     <span className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
@@ -682,11 +679,10 @@ export function DashboardView() {
                   </button>
                   <button
                     onClick={() => setFilterStatus(filterStatus === 'REVIEW' ? 'ALL' : 'REVIEW')}
-                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${
-                      filterStatus === 'REVIEW'
+                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${filterStatus === 'REVIEW'
                         ? 'bg-amber-50 font-bold'
                         : 'hover:bg-surface-container-low'
-                    }`}
+                      }`}
                   >
                     <span className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
@@ -698,11 +694,10 @@ export function DashboardView() {
                   </button>
                   <button
                     onClick={() => setFilterStatus(filterStatus === 'FAIL' ? 'ALL' : 'FAIL')}
-                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${
-                      filterStatus === 'FAIL'
+                    className={`flex justify-between items-center text-xs p-1.5 rounded transition-colors cursor-pointer ${filterStatus === 'FAIL'
                         ? 'bg-red-50 font-bold'
                         : 'hover:bg-surface-container-low'
-                    }`}
+                      }`}
                   >
                     <span className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500" />

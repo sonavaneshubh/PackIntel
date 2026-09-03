@@ -1,16 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { useCompliance } from '@/lib/complianceContext';
+import { supabase } from '@/lib/supabase/client';
+import { ExtractedLabel } from '@/types/database';
 import { DetectedDeclaration } from '@/types/compliance';
+import { complianceRules } from '@/lib/constants/complianceRules';
 
 export function DeclarationsView() {
   const router = useRouter();
-  const { declarations, updateDeclaration } = useCompliance();
+  const searchParams = useSearchParams();
+  const inspectionId = searchParams.get('inspection');
+
+  const [extractedLabel, setExtractedLabel] = useState<ExtractedLabel | null>(null);
+  const [declarations, setDeclarations] = useState<DetectedDeclaration[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRunningCheck, setIsRunningCheck] = useState(false);
 
   // Edit Modal State
   const [editingItem, setEditingItem] = useState<DetectedDeclaration | null>(null);
@@ -19,28 +28,125 @@ export function DeclarationsView() {
   // Evidence Modal State
   const [evidenceItem, setEvidenceItem] = useState<DetectedDeclaration | null>(null);
 
-  // Compliance Run State
-  const [isRunningCheck, setIsRunningCheck] = useState(false);
+  useEffect(() => {
+    if (!inspectionId) {
+      setError('No inspection ID provided');
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('extracted_labels')
+          .select('*')
+          .eq('inspection_id', inspectionId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (data) {
+          setExtractedLabel(data);
+          // Build declarations from extracted label
+          const declList: DetectedDeclaration[] = [
+            { id: 'RULE-PC-01', key: 'manufacturer_name', label: 'Manufacturer/Packer/Importer', value: data.manufacturer_name || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.manufacturer_name },
+            { id: 'RULE-PC-02', key: 'commodity_name', label: 'Common/Generic Product Name', value: data.commodity_name || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.commodity_name },
+            { id: 'RULE-PC-03', key: 'net_quantity', label: 'Net Quantity', value: data.net_quantity || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.net_quantity },
+            { id: 'RULE-PC-04', key: 'month_year_packed', label: 'Month & Year of Manufacture/Packing', value: data.month_year_packed || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.month_year_packed },
+            { id: 'RULE-PC-05', key: 'mrp', label: 'Maximum Retail Price (MRP)', value: data.mrp || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.mrp },
+            { id: 'RULE-PC-06', key: 'unit_price', label: 'Unit Sale Price (USP)', value: '', confidence: 0, reviewRequired: true, warningNote: 'Unit price calculation requires net quantity and MRP' },
+            { id: 'RULE-PC-07', key: 'customer_care', label: 'Consumer Care Details', value: data.customer_care_details || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.customer_care_details },
+          ].filter(d => d.value || d.reviewRequired);
+
+          setDeclarations(declList);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load declarations');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [inspectionId]);
+
+  const updateDeclaration = (id: string, updatedValue: string) => {
+    setDeclarations(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, value: updatedValue, confidence: 99, reviewRequired: false, warningNote: undefined }
+          : item
+      )
+    );
+  };
 
   const handleOpenEdit = (item: DetectedDeclaration) => {
     setEditingItem(item);
     setEditValue(item.value);
   };
 
-  const handleSaveEdit = () => {
-    if (editingItem) {
+  const handleSaveEdit = async () => {
+    if (!editingItem || !extractedLabel) return;
+
+    const updateData: Partial<ExtractedLabel> = {
+      [editingItem.key]: editValue,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { error } = await supabase
+        .from('extracted_labels')
+        .update(updateData)
+        .eq('inspection_id', inspectionId!);
+
+      if (error) throw error;
+
       updateDeclaration(editingItem.id, editValue);
       setEditingItem(null);
+    } catch (err) {
+      alert(`Failed to save: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
-  const handleRunCompliance = () => {
+  const handleRunCompliance = async () => {
     setIsRunningCheck(true);
-    setTimeout(() => {
+    try {
+      // Navigate to results page - compliance will be computed there
+      router.push(`/results?inspection=${inspectionId}`);
+    } catch {
+      // Navigation handled by router
+    } finally {
       setIsRunningCheck(false);
-      router.push('/results');
-    }, 1200);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <AppShell pageTitle="Detected Declarations">
+        <div className="max-w-5xl mx-auto w-full flex flex-col items-center justify-center py-12">
+          <span className="material-symbols-outlined text-4xl text-primary animate-spin mb-4">autorenew</span>
+          <p className="text-body-base text-on-surface-variant">Loading declarations...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell pageTitle="Declarations Error">
+        <div className="max-w-md mx-auto text-center py-12">
+          <span className="material-symbols-outlined text-6xl text-error mb-4">error</span>
+          <h2 className="text-headline-lg font-headline-lg text-on-surface mb-2">Failed to Load Declarations</h2>
+          <p className="text-body-base text-on-surface-variant mb-6">{error}</p>
+          <Button variant="primary" onClick={() => router.push('/scan/new')}>
+            Start New Scan
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell pageTitle="Detected Declarations">
@@ -83,50 +189,25 @@ export function DeclarationsView() {
               {/* Review Required Top-Right Ribbon for Warning Items */}
               {isWarning && (
                 <div className="absolute top-0 right-0 bg-warning text-[#78350f] text-[10px] font-bold px-2 py-1 rounded-bl-lg uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                  <span className="material-symbols-outlined text-[12px]">
-                    warning
-                  </span>
+                  <span className="material-symbols-outlined text-[12px]">warning</span>
                   Review Required
                 </div>
               )}
 
               <div>
-                <div
-                  className={`flex justify-between items-start mb-3 ${
-                    isWarning ? 'mt-2' : ''
-                  }`}
-                >
-                  <span
-                    className={`text-label-bold font-label-bold uppercase tracking-wider text-xs ${
-                      isWarning ? 'text-[#78350f]' : 'text-secondary'
-                    }`}
-                  >
+                <div className={`flex justify-between items-start mb-3 ${isWarning ? 'mt-2' : ''}`}>
+                  <span className={`text-label-bold font-label-bold uppercase tracking-wider text-xs ${isWarning ? 'text-[#78350f]' : 'text-secondary'}`}>
                     {item.label}
                   </span>
 
-                  <div
-                    className={`px-2 py-1 rounded-full text-[11px] font-label-bold flex items-center gap-1 ${
-                      isWarning
-                        ? 'bg-[#fef3c7] text-[#78350f] border border-warning'
-                        : 'bg-surface-container-highest text-on-surface'
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full block ${
-                        isWarning ? 'bg-warning' : 'bg-primary'
-                      }`}
-                    />
+                  <div className={`px-2 py-1 rounded-full text-[11px] font-label-bold flex items-center gap-1 ${isWarning ? 'bg-[#fef3c7] text-[#78350f] border border-warning' : 'bg-surface-container-highest text-on-surface'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full block ${isWarning ? 'bg-warning' : 'bg-primary'}`} />
                     {item.confidence}%
                   </div>
                 </div>
 
-                <p
-                  className={`text-headline-md font-headline-md mb-6 truncate ${
-                    isWarning ? 'text-[#78350f]' : 'text-on-surface'
-                  }`}
-                  title={item.value}
-                >
-                  {item.value}
+                <p className={`text-headline-md font-headline-md mb-6 truncate ${isWarning ? 'text-[#78350f]' : 'text-on-surface'}`} title={item.value}>
+                  {item.value || '<Not detected>'}
                 </p>
 
                 {item.warningNote && (
@@ -137,32 +218,20 @@ export function DeclarationsView() {
               </div>
 
               {/* Card Footer Actions */}
-              <div
-                className={`flex gap-3 pt-3 border-t ${
-                  isWarning ? 'border-[#fcd34d]' : 'border-outline-variant'
-                }`}
-              >
+              <div className={`flex gap-3 pt-3 border-t ${isWarning ? 'border-[#fcd34d]' : 'border-outline-variant'}`}>
                 <button
                   onClick={() => handleOpenEdit(item)}
                   className="text-body-sm font-label-bold text-primary hover:text-primary-container flex items-center gap-1 cursor-pointer transition-colors text-xs"
                 >
-                  <span className="material-symbols-outlined text-[16px]">
-                    edit
-                  </span>
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
                   Edit
                 </button>
 
                 <button
                   onClick={() => setEvidenceItem(item)}
-                  className={`text-body-sm font-label-bold flex items-center gap-1 ml-4 cursor-pointer transition-colors text-xs ${
-                    isWarning
-                      ? 'text-[#78350f] hover:opacity-80'
-                      : 'text-secondary hover:text-on-surface'
-                  }`}
+                  className={`text-body-sm font-label-bold flex items-center gap-1 ml-4 cursor-pointer transition-colors text-xs ${isWarning ? 'text-[#78350f] hover:opacity-80' : 'text-secondary hover:text-on-surface'}`}
                 >
-                  <span className="material-symbols-outlined text-[16px]">
-                    image
-                  </span>
+                  <span className="material-symbols-outlined text-[16px]">image</span>
                   Evidence
                 </button>
               </div>
@@ -179,16 +248,8 @@ export function DeclarationsView() {
         subtitle="Correct optical recognition error or adjust standard unit"
         footer={
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setEditingItem(null)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSaveEdit}>
-              Save Changes
-            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setEditingItem(null)}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={handleSaveEdit}>Save Changes</Button>
           </>
         }
       >
@@ -222,31 +283,20 @@ export function DeclarationsView() {
         subtitle={`Crop region confidence: ${evidenceItem?.confidence || 0}%`}
         maxWidth="xl"
         footer={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setEvidenceItem(null)}
-          >
-            Close Viewer
-          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setEvidenceItem(null)}>Close Viewer</Button>
         }
       >
         {evidenceItem && (
           <div className="space-y-4">
             <div className="relative h-64 bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant flex items-center justify-center">
-              <img
-                src={evidenceItem.evidenceImageUrl || '/images/label_sample.png'}
-                alt={`Evidence crop for ${evidenceItem.label}`}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-primary/10 border-2 border-primary m-6 rounded flex items-start justify-start p-2 pointer-events-none">
-                <span className="bg-primary text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-xs">
-                  {evidenceItem.label}: {evidenceItem.value}
-                </span>
+              <div className="text-center text-on-surface-variant">
+                <span className="material-symbols-outlined text-4xl mb-2">image_search</span>
+                <p>Evidence crop for {evidenceItem.label}</p>
+                <p className="text-xs">OCR extracted: {evidenceItem.value}</p>
               </div>
             </div>
             <div className="flex justify-between items-center text-xs text-on-surface-variant font-data-tabular">
-              <span>Bounding Coordinates: [x: 120, y: 340, w: 210, h: 48]</span>
+              <span>Bounding region detected via OCR</span>
               <span className="text-green-700 font-semibold">Verified by Vision OCR</span>
             </div>
           </div>

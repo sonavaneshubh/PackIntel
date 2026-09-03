@@ -4,22 +4,25 @@ import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
-import { useCompliance } from '@/lib/complianceContext';
+import { useScanPipeline } from '@/lib/hooks/useScanPipeline';
 
 export function NewScanView() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const {
-    productForm,
-    setProductForm,
-    uploadedImageUrl,
-    setUploadedImageUrl,
-    qualityChecks,
-    runSimulatedAnalysis,
-  } = useCompliance();
+  const { state, runFullPipeline, resetPipeline } = useScanPipeline();
 
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFileName, setSelectedFileName] = useState<string>('sample_product_label.png');
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [productForm, setProductForm] = useState({
+    product_name: '',
+    brand_name: '',
+    manufacturer_name: '',
+    product_category: 'food',
+    is_imported: false,
+  });
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -46,6 +49,7 @@ export function NewScanView() {
   };
 
   const handleFile = (file: File) => {
+    setSelectedFile(file);
     setSelectedFileName(file.name);
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -56,8 +60,24 @@ export function NewScanView() {
     reader.readAsDataURL(file);
   };
 
-  const handleStartAnalysis = () => {
-    router.push('/scan/analyzing');
+  const handleStartAnalysis = async () => {
+    if (!selectedFile) {
+      alert('Please upload a product label image first');
+      return;
+    }
+
+    if (!productForm.product_name || !productForm.manufacturer_name) {
+      alert('Please fill in Product Name and Manufacturer');
+      return;
+    }
+
+    setIsProcessing(true);
+    const result = await runFullPipeline(selectedFile, productForm);
+    setIsProcessing(false);
+
+    if (!result.success) {
+      alert(`Scan failed: ${result.error}`);
+    }
   };
 
   return (
@@ -218,11 +238,30 @@ export function NewScanView() {
                 <input
                   id="product_name"
                   type="text"
-                  value={productForm.productName}
+                  value={productForm.product_name}
                   onChange={(e) =>
-                    setProductForm({ ...productForm, productName: e.target.value })
+                    setProductForm({ ...productForm, product_name: e.target.value })
                   }
                   placeholder="e.g. Premium Basmati Rice"
+                  className="border border-outline-variant rounded bg-surface-container-lowest px-3 py-2 text-body-base font-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow w-full"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="brand_name"
+                  className="text-label-bold font-label-bold text-on-surface uppercase text-xs"
+                >
+                  Brand Name
+                </label>
+                <input
+                  id="brand_name"
+                  type="text"
+                  value={productForm.brand_name}
+                  onChange={(e) =>
+                    setProductForm({ ...productForm, brand_name: e.target.value })
+                  }
+                  placeholder="e.g. Premium Select"
                   className="border border-outline-variant rounded bg-surface-container-lowest px-3 py-2 text-body-base font-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow w-full"
                 />
               </div>
@@ -237,9 +276,9 @@ export function NewScanView() {
                 <div className="relative">
                   <select
                     id="category"
-                    value={productForm.category}
+                    value={productForm.product_category}
                     onChange={(e) =>
-                      setProductForm({ ...productForm, category: e.target.value })
+                      setProductForm({ ...productForm, product_category: e.target.value })
                     }
                     className="appearance-none border border-outline-variant rounded bg-surface-container-lowest px-3 py-2 text-body-base font-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow w-full pr-10 cursor-pointer"
                   >
@@ -265,9 +304,9 @@ export function NewScanView() {
                 <input
                   id="manufacturer"
                   type="text"
-                  value={productForm.manufacturer}
+                  value={productForm.manufacturer_name}
                   onChange={(e) =>
-                    setProductForm({ ...productForm, manufacturer: e.target.value })
+                    setProductForm({ ...productForm, manufacturer_name: e.target.value })
                   }
                   placeholder="e.g. ABC Foods Private Limited"
                   className="border border-outline-variant rounded bg-surface-container-lowest px-3 py-2 text-body-base font-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow w-full"
@@ -278,11 +317,11 @@ export function NewScanView() {
                 <label className="flex items-center gap-3 cursor-pointer group select-none">
                   <input
                     type="checkbox"
-                    checked={productForm.isImported}
+                    checked={productForm.is_imported}
                     onChange={(e) =>
                       setProductForm({
                         ...productForm,
-                        isImported: e.target.checked,
+                        is_imported: e.target.checked,
                       })
                     }
                     className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container-lowest cursor-pointer"
@@ -331,30 +370,27 @@ export function NewScanView() {
 
             <div className="p-4">
               <p className="text-body-sm font-body-sm text-on-surface-variant mb-4 pb-4 border-b border-outline-variant text-xs">
-                Real-time analysis will activate upon file upload.
+                {state.step !== 'idle' ? 'Processing pipeline active...' : 'Real-time analysis will activate upon file upload.'}
               </p>
 
               <ul className="space-y-3 font-data-tabular text-data-tabular">
-                {qualityChecks.map((item) => (
+                {[
+                  { id: 'res', title: 'Resolution', icon: 'lens_blur', check: uploadedImageUrl },
+                  { id: 'framing', title: 'Framing Complete', icon: 'aspect_ratio', check: uploadedImageUrl },
+                  { id: 'lighting', title: 'Lighting Check', icon: 'wb_incandescent', check: uploadedImageUrl },
+                  { id: 'orientation', title: 'Orientation', icon: 'crop_rotate', check: uploadedImageUrl },
+                ].map((item) => (
                   <li
                     key={item.id}
                     className={`flex items-start gap-3 p-2 rounded transition-colors ${
-                      item.status === 'error'
-                        ? 'bg-error-container/30 border border-error-container'
-                        : item.status === 'warning'
-                        ? 'bg-amber-50/50 border border-amber-200'
-                        : 'bg-surface-container-lowest'
+                      item.check
+                        ? 'bg-surface-container-lowest'
+                        : 'bg-surface-container-lowest opacity-60'
                     }`}
                   >
                     <span
                       className={`material-symbols-outlined mt-0.5 text-[20px] ${
-                        item.status === 'good'
-                          ? 'text-primary'
-                          : item.status === 'warning'
-                          ? 'text-on-secondary-container'
-                          : item.status === 'error'
-                          ? 'text-error'
-                          : 'text-outline'
+                        item.check ? 'text-primary' : 'text-outline'
                       }`}
                     >
                       {item.icon}
@@ -363,49 +399,42 @@ export function NewScanView() {
                       <div className="text-on-surface font-medium text-xs">
                         {item.title}
                       </div>
-                      <div
-                        className={`text-xs mt-0.5 ${
-                          item.status === 'error'
-                            ? 'text-error font-medium'
-                            : item.status === 'warning'
-                            ? 'text-amber-800'
-                            : 'text-on-surface-variant'
-                        }`}
-                      >
-                        {item.statusText}
+                      <div className={`text-xs mt-0.5 ${item.check ? 'text-primary' : 'text-on-surface-variant'}`}>
+                        {item.check ? 'Check passed' : 'Awaiting image'}
                       </div>
                     </div>
                     <span
                       className={`material-symbols-outlined text-[18px] ${
-                        item.status === 'good'
-                          ? 'text-primary'
-                          : item.status === 'warning'
-                          ? 'text-amber-600'
-                          : item.status === 'error'
-                          ? 'text-error'
-                          : 'text-outline opacity-50'
+                        item.check ? 'text-primary' : 'text-outline opacity-50'
                       }`}
                     >
-                      {item.status === 'good'
-                        ? 'check_circle'
-                        : item.status === 'warning'
-                        ? 'warning'
-                        : item.status === 'error'
-                        ? 'error'
-                        : 'pending'}
+                      {item.check ? 'check_circle' : 'pending'}
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* System processing indicator */}
-            <div className="bg-surface-container-lowest p-3 border-t border-outline-variant flex items-center justify-center gap-2 text-body-sm font-body-sm text-outline text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="ml-1 text-on-surface-variant font-medium">
-                System Ready for OCR Processing
-              </span>
-            </div>
+            {/* Pipeline progress indicator */}
+            {state.step !== 'idle' && (
+              <div className="bg-surface-container-lowest p-3 border-t border-outline-variant">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="text-on-surface-variant font-medium">
+                    Pipeline: {state.step.toUpperCase()}
+                  </span>
+                  <span className="text-primary font-mono">{state.progress}%</span>
+                </div>
+                <div className="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                  <div
+                    className="bg-primary h-full rounded-full transition-all duration-300"
+                    style={{ width: `${state.progress}%` }}
+                  />
+                </div>
+                {state.error && (
+                  <p className="text-xs text-error mt-2">Error: {state.error}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

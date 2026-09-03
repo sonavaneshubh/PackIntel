@@ -1,32 +1,145 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceBadge } from '@/components/ui/Badge';
-import { useCompliance } from '@/lib/complianceContext';
+import { supabase } from '@/lib/supabase/client';
+import { InspectionImage, ExtractedLabel } from '@/types/database';
+import { getSignedImageUrl } from '@/lib/supabase/inspectionService';
+
+interface ExtractedEntity {
+  id: string;
+  name: string;
+  extractedValue: string;
+  confidence: number;
+  colorDot: string;
+}
 
 export function OcrAnalysisView() {
   const router = useRouter();
-  const {
-    uploadedImageUrl,
-    boundingBoxes,
-    extractedEntities,
-    activeBoundingBoxId,
-    setActiveBoundingBoxId,
-  } = useCompliance();
+  const searchParams = useSearchParams();
+  const inspectionId = searchParams.get('inspection');
 
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [image, setImage] = useState<InspectionImage | null>(null);
+  const [extractedLabel, setExtractedLabel] = useState<ExtractedLabel | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [ocrText, setOcrText] = useState<string>('');
+  const [entities, setEntities] = useState<ExtractedEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeBoundingBoxId, setActiveBoundingBoxId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!inspectionId) {
+      setError('No inspection ID provided');
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        // Fetch inspection image
+        const { data: images, error: imgError } = await supabase
+          .from('inspection_images')
+          .select('*')
+          .eq('inspection_id', inspectionId)
+          .order('uploaded_at', { ascending: false })
+          .limit(1);
+
+        if (imgError) throw imgError;
+
+        if (images && images.length > 0) {
+          setImage(images[0]);
+          if (images[0].ocr_text) {
+            setOcrText(images[0].ocr_text);
+          }
+
+          // Get signed URL for private bucket
+          const { url } = await getSignedImageUrl(images[0].storage_path);
+          if (url) setSignedUrl(url);
+        }
+
+        // Fetch extracted labels
+        const { data: labels, error: labelError } = await supabase
+          .from('extracted_labels')
+          .select('*')
+          .eq('inspection_id', inspectionId)
+          .single();
+
+        if (labelError && labelError.code !== 'PGRST116') {
+          throw labelError;
+        }
+
+        if (labels) {
+          setExtractedLabel(labels);
+          // Build entities from extracted label
+          const entityList: ExtractedEntity[] = [
+            { id: '1', name: 'Manufacturer', extractedValue: labels.manufacturer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-blue-500' },
+            { id: '2', name: 'Packer', extractedValue: labels.packer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-indigo-500' },
+            { id: '3', name: 'Importer', extractedValue: labels.importer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-purple-500' },
+            { id: '4', name: 'Commodity Name', extractedValue: labels.commodity_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-green-500' },
+            { id: '5', name: 'Net Quantity', extractedValue: labels.net_quantity || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-teal-500' },
+            { id: '6', name: 'MRP', extractedValue: labels.mrp || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-amber-500' },
+            { id: '7', name: 'Month/Year Packed', extractedValue: labels.month_year_packed || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-orange-500' },
+            { id: '8', name: 'Consumer Care', extractedValue: labels.customer_care_details || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-pink-500' },
+            { id: '9', name: 'Country of Origin', extractedValue: labels.country_of_origin || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-red-500' },
+          ].filter(e => e.extractedValue !== 'Not detected');
+
+          setEntities(entityList);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load OCR data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [inspectionId]);
 
   const handleEntityHover = (name: string) => {
-    if (name.toLowerCase().includes('mrp')) setActiveBoundingBoxId('mrp');
-    else if (name.toLowerCase().includes('qty') || name.toLowerCase().includes('quantity'))
-      setActiveBoundingBoxId('net_qty');
-    else if (name.toLowerCase().includes('mfg') || name.toLowerCase().includes('manufacturer'))
-      setActiveBoundingBoxId('mfg');
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes('mrp')) setActiveBoundingBoxId('mrp');
+    else if (nameLower.includes('qty') || nameLower.includes('quantity')) setActiveBoundingBoxId('net_qty');
+    else if (nameLower.includes('mfg') || nameLower.includes('manufacturer')) setActiveBoundingBoxId('mfg');
+    else if (nameLower.includes('packer')) setActiveBoundingBoxId('packer');
+    else if (nameLower.includes('commodity')) setActiveBoundingBoxId('commodity');
+    else if (nameLower.includes('net')) setActiveBoundingBoxId('net_qty');
+    else if (nameLower.includes('consumer')) setActiveBoundingBoxId('consumer');
+    else if (nameLower.includes('country')) setActiveBoundingBoxId('country');
+    else if (nameLower.includes('month') || nameLower.includes('packed')) setActiveBoundingBoxId('date');
     else setActiveBoundingBoxId(null);
   };
+
+  if (isLoading) {
+    return (
+      <AppShell pageTitle="OCR Extraction">
+        <div className="max-w-5xl mx-auto w-full flex flex-col items-center justify-center py-12">
+          <span className="material-symbols-outlined text-4xl text-primary animate-spin mb-4">autorenew</span>
+          <p className="text-body-base text-on-surface-variant">Loading OCR analysis...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell pageTitle="OCR Extraction Error">
+        <div className="max-w-md mx-auto text-center py-12">
+          <span className="material-symbols-outlined text-6xl text-error mb-4">error</span>
+          <h2 className="text-headline-lg font-headline-lg text-on-surface mb-2">Failed to Load OCR Data</h2>
+          <p className="text-body-base text-on-surface-variant mb-6">{error}</p>
+          <Button variant="primary" onClick={() => router.push('/scan/new')}>
+            Start New Scan
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const imageUrl = signedUrl || image?.public_url || '';
 
   return (
     <AppShell pageTitle="OCR Extraction & Identification">
@@ -49,68 +162,58 @@ export function OcrAnalysisView() {
               Label Scan
             </h3>
             <span className="text-xs text-on-surface-variant bg-surface-container-highest px-2.5 py-1 rounded-full font-mono">
-              3 Regions Mapped
+              {entities.length} Entities Extracted
             </span>
           </div>
 
           <div className="relative flex-1 bg-surface-container-low rounded border border-outline-variant overflow-hidden min-h-[420px] flex items-center justify-center">
             {/* Label Image */}
-            <img
-              src={
-                uploadedImageUrl ||
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuAAU3ranM15SAG_xqt-7ZZy8BMMvqB08Ft6RhHvCydF4Q7DVp9998gS_UfwsULXZsR61oZ-60LerbtvBe64CKZT9BDf-8eZbZJYhqGmiR4U37JvsEJm_L29j6eV2-KTLC4Zq_nKbd9Y5-rHIOHgePjWM9-UgXShaexL6P9VL_HU6RdRc2GC4bN9A-rLLDUE6JOSnwyNzS0CUigzx9Z-jOwhKDHbDTxrmXN5J3S4zrqaAXQphiJN3qs_'
-              }
-              alt="High-resolution packaged commodity label scan"
-              className="w-full h-full object-cover absolute inset-0"
-            />
-
-            {/* Overlay Bounding Boxes */}
-            <div className="absolute inset-0 p-4">
-              {/* Box 1: MRP */}
-              <div
-                onMouseEnter={() => setActiveBoundingBoxId('mrp')}
-                onMouseLeave={() => setActiveBoundingBoxId(null)}
-                className={`absolute top-[15%] left-[60%] w-28 h-9 border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${
-                  activeBoundingBoxId === 'mrp'
-                    ? 'border-primary bg-primary/40 scale-105 shadow-md'
-                    : 'border-primary bg-primary/20 hover:bg-primary/30'
-                }`}
-              >
-                <div className="bg-primary text-on-primary text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
-                  MRP - 98%
-                </div>
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt="Product label scan"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-center text-on-surface-variant">
+                <span className="material-symbols-outlined text-6xl mb-2">image_not_supported</span>
+                <p>No image available</p>
               </div>
+            )}
 
-              {/* Box 2: Net Qty */}
-              <div
-                onMouseEnter={() => setActiveBoundingBoxId('net_qty')}
-                onMouseLeave={() => setActiveBoundingBoxId(null)}
-                className={`absolute top-[35%] left-[20%] w-36 h-11 border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${
-                  activeBoundingBoxId === 'net_qty'
-                    ? 'border-teal-500 bg-teal-500/40 scale-105 shadow-md'
-                    : 'border-teal-500 bg-teal-500/20 hover:bg-teal-500/30'
-                }`}
-              >
-                <div className="bg-teal-500 text-white text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
-                  Net Qty - 96%
-                </div>
-              </div>
+            {/* Overlay Bounding Boxes - simplified placeholder positions */}
+            {entities.length > 0 && (
+              <div className="absolute inset-0 p-4">
+                {entities.map((entity, index) => {
+                  const positions = [
+                    { top: '15%', left: '60%', width: 'w-28', height: 'h-9' },    // MRP area
+                    { top: '35%', left: '20%', width: 'w-36', height: 'h-11' },   // Net Qty area
+                    { top: '60%', left: '10%', width: 'w-52', height: 'h-18' },   // Manufacturer area
+                    { top: '25%', left: '50%', width: 'w-40', height: 'h-10' },   // Commodity
+                    { top: '45%', left: '30%', width: 'w-32', height: 'h-12' },   // Date
+                    { top: '70%', left: '15%', width: 'w-48', height: 'h-14' },   // Consumer care
+                    { top: '80%', left: '20%', width: 'w-36', height: 'h-10' },   // Country
+                  ];
+                  const pos = positions[index % positions.length];
+                  const boxId = entity.name.toLowerCase().replace(/\s+/g, '_');
+                  const colors = ['border-primary bg-primary', 'border-teal-500 bg-teal-500', 'border-indigo-500 bg-indigo-500', 'border-green-500 bg-green-500', 'border-orange-500 bg-orange-500', 'border-pink-500 bg-pink-500', 'border-red-500 bg-red-500'];
+                  const color = colors[index % colors.length];
 
-              {/* Box 3: Manufacturer */}
-              <div
-                onMouseEnter={() => setActiveBoundingBoxId('mfg')}
-                onMouseLeave={() => setActiveBoundingBoxId(null)}
-                className={`absolute top-[60%] left-[10%] w-52 h-18 border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${
-                  activeBoundingBoxId === 'mfg'
-                    ? 'border-indigo-500 bg-indigo-500/40 scale-105 shadow-md'
-                    : 'border-indigo-500 bg-indigo-500/20 hover:bg-indigo-500/30'
-                }`}
-              >
-                <div className="bg-indigo-500 text-white text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap opacity-100 group-hover:-top-6 transition-all">
-                  Manufacturer - 94%
-                </div>
+                  return (
+                    <div
+                      key={entity.id}
+                      onMouseEnter={() => setActiveBoundingBoxId(boxId)}
+                      onMouseLeave={() => setActiveBoundingBoxId(null)}
+                      className={`absolute ${pos.top} ${pos.left} ${pos.width} ${pos.height} border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${activeBoundingBoxId === boxId ? `${color}/40 scale-105 shadow-md` : `${color}/20 hover:${color}/30`}`}
+                    >
+                      <div className={`bg-${color.split(' ')[0].replace('border-', '')} text-white text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap opacity-100 group-hover:-top-6 transition-all`}>
+                        {entity.name} - {entity.confidence}%
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -141,27 +244,20 @@ export function OcrAnalysisView() {
                 </tr>
               </thead>
               <tbody className="text-data-tabular font-data-tabular text-on-surface divide-y divide-outline-variant/60 bg-surface">
-                {extractedEntities.map((item) => (
+                {entities.map((item) => (
                   <tr
                     key={item.id}
                     onMouseEnter={() => handleEntityHover(item.name)}
                     onMouseLeave={() => setActiveBoundingBoxId(null)}
-                    onClick={() => setSelectedEntityId(item.id)}
                     className="hover:bg-surface-container-low transition-colors cursor-pointer group"
                   >
                     <td className="p-3.5">
                       <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full ${item.colorDot} group-hover:scale-125 transition-transform`}
-                        />
-                        <span className="font-semibold text-xs text-on-surface">
-                          {item.name}
-                        </span>
+                        <div className={`w-2.5 h-2.5 rounded-full ${item.colorDot} group-hover:scale-125 transition-transform`} />
+                        <span className="font-semibold text-xs text-on-surface">{item.name}</span>
                       </div>
                     </td>
-                    <td className="p-3.5 font-medium text-xs text-on-surface">
-                      {item.extractedValue}
-                    </td>
+                    <td className="p-3.5 font-medium text-xs text-on-surface">{item.extractedValue}</td>
                     <td className="p-3.5 text-right">
                       <ConfidenceBadge confidence={item.confidence} />
                     </td>
@@ -173,6 +269,14 @@ export function OcrAnalysisView() {
         </div>
       </div>
 
+      {/* Raw OCR Text Section */}
+      {ocrText && (
+        <div className="bg-surface border border-outline-variant rounded-lg p-4 mb-6">
+          <h3 className="text-label-bold font-label-bold text-on-surface uppercase tracking-wider text-xs mb-2">Raw OCR Text</h3>
+          <pre className="bg-surface-container-lowest p-3 rounded text-xs font-mono text-on-surface-variant overflow-x-auto max-h-40">{ocrText}</pre>
+        </div>
+      )}
+
       {/* Action Navigation Footer */}
       <div className="flex justify-between items-center pt-4 border-t border-outline-variant">
         <Button
@@ -180,13 +284,13 @@ export function OcrAnalysisView() {
           icon="arrow_back"
           onClick={() => router.push('/scan/new')}
         >
-          Back to Image
+          Back to Scan
         </Button>
         <Button
           variant="primary"
           icon="arrow_forward"
           iconPosition="right"
-          onClick={() => router.push('/scan/declarations')}
+          onClick={() => router.push(`/scan/declarations?inspection=${inspectionId}`)}
           className="px-6"
         >
           Review Declarations
