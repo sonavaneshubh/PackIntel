@@ -207,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {
           success: false,
           error:
-            'Supabase credentials not configured in .env.local. Use "Use Demo Inspector Account" for demonstration.',
+            'Supabase credentials not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment. Use "Use Demo Inspector Account" for demonstration.',
         };
       }
 
@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: true };
         }
       }
-      return { success: false, error: 'Supabase credentials not configured.' };
+      return { success: false, error: 'Supabase credentials not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.' };
     } catch {
       return { success: false, error: 'An unexpected error occurred during registration.' };
     } finally {
