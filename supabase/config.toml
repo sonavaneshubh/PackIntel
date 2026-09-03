@@ -1,0 +1,12 @@
+project_id = "packintel"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[storage]
+enabled = true
+buckets = ["inspection-images", "inspection-reports"]
