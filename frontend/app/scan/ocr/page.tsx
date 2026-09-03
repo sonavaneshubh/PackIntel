@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { OcrAnalysisView } from '@/features/ocr/OcrAnalysisView';
 
 export default function OcrPage() {
-  return <OcrAnalysisView />;
+  return (
+    <Suspense fallback={null}>
+      <OcrAnalysisView />
+    </Suspense>
+  );
 }

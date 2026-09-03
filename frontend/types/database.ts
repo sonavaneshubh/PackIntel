@@ -40,8 +40,20 @@ export interface Inspection {
   updated_at: string;
 }
 
-export type InspectionInsert = Omit<Inspection, 'id' | 'created_at' | 'updated_at'> & {
+export type InspectionInsert = {
   id?: string;
+  inspection_number?: string;
+  inspector_id: string;
+  status?: InspectionStatus;
+  product_name?: string | null;
+  brand_name?: string | null;
+  manufacturer_name?: string | null;
+  product_category?: string | null;
+  is_imported?: boolean;
+  overall_result?: OverallResult | null;
+  risk_score?: number | null;
+  notes?: string | null;
+  inspected_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -60,11 +72,20 @@ export interface InspectionImage {
   file_name: string | null;
   file_size_bytes: number | null;
   mime_type: string | null;
+  ocr_text: string | null;
   uploaded_at: string;
 }
 
-export type InspectionImageInsert = Omit<InspectionImage, 'id' | 'uploaded_at'> & {
+export type InspectionImageInsert = {
   id?: string;
+  inspection_id: string;
+  storage_path: string;
+  public_url?: string | null;
+  image_type?: ImageType;
+  file_name?: string | null;
+  file_size_bytes?: number | null;
+  mime_type?: string | null;
+  ocr_text?: string | null;
   uploaded_at?: string;
 };
 
@@ -88,8 +109,21 @@ export interface ExtractedLabel {
   updated_at: string;
 }
 
-export type ExtractedLabelInsert = Omit<ExtractedLabel, 'id' | 'created_at' | 'updated_at'> & {
+export type ExtractedLabelInsert = {
   id?: string;
+  inspection_id: string;
+  manufacturer_name?: string | null;
+  packer_name?: string | null;
+  importer_name?: string | null;
+  commodity_name?: string | null;
+  net_quantity?: string | null;
+  mrp?: string | null;
+  month_year_packed?: string | null;
+  customer_care_details?: string | null;
+  country_of_origin?: string | null;
+  other_declarations?: string | null;
+  raw_ocr_text?: string | null;
+  extraction_confidence?: number | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -112,8 +146,16 @@ export interface ComplianceResultRow {
   created_at: string;
 }
 
-export type ComplianceResultInsert = Omit<ComplianceResultRow, 'id' | 'created_at'> & {
+export type ComplianceResultInsert = {
   id?: string;
+  inspection_id: string;
+  rule_code: string;               // e.g. LM-R6-1
+  rule_name: string;
+  requirement?: string | null;
+  extracted_value?: string | null;
+  result: ComplianceResult;
+  explanation?: string | null;
+  evidence?: string | null;         // JSON string or description
   created_at?: string;
 };
 

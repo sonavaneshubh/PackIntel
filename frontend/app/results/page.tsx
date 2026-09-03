@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
@@ -16,6 +16,14 @@ interface ComplianceResultWithRule extends ComplianceResultRow {
 }
 
 export default function ResultsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResultsContent />
+    </Suspense>
+  );
+}
+
+function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inspectionId = searchParams.get('inspection');
@@ -220,7 +228,17 @@ export default function ResultsPage() {
                     {item.extracted_value || '<Not detected>'}
                   </td>
                   <td className="py-2 px-4">
-                    <StatusBadge status={item.result.toUpperCase() as 'PASS' | 'REVIEW' | 'FAIL' | 'NOT_APPLICABLE'} />
+                    <StatusBadge
+                      status={
+                        item.result.toUpperCase() === "PASS"
+                          ? "good"
+                          : item.result.toUpperCase() === "FAIL"
+                            ? "error"
+                            : item.result.toUpperCase() === "REVIEW" || item.result.toUpperCase() === "WARNING"
+                              ? "warning"
+                              : "pending"
+                      }
+                    />
                   </td>
                   <td className="py-2 px-4 text-right font-data-tabular text-xs">
                     {item.result === 'fail' ? 'High' : item.result === 'warning' ? 'Medium' : 'Low'}
@@ -245,8 +263,17 @@ export default function ResultsPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs text-on-surface-variant">{item.rule_code}</span>
                     <span className="font-semibold text-sm text-on-surface">{item.rule_name}</span>
-                    <StatusBadge status={item.result.toUpperCase() as 'PASS' | 'REVIEW' | 'FAIL' | 'NOT_APPLICABLE'} />
-                  </div>
+                    <StatusBadge
+                      status={
+                        item.result.toUpperCase() === "PASS"
+                          ? "good"
+                          : item.result.toUpperCase() === "FAIL"
+                            ? "error"
+                            : item.result.toUpperCase() === "REVIEW" || item.result.toUpperCase() === "WARNING"
+                              ? "warning"
+                              : "pending"
+                      }
+                    />                  </div>
                   {item.ruleDescription && (
                     <p className="text-xs text-on-surface-variant">{item.ruleDescription}</p>
                   )}

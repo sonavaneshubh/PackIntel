@@ -118,11 +118,10 @@ export default function HistoryPage() {
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-label-bold font-semibold transition-all ${
-                statusFilter === st
-                  ? 'bg-primary text-on-primary shadow-xs'
-                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-label-bold font-semibold transition-all ${statusFilter === st
+                ? 'bg-primary text-on-primary shadow-xs'
+                : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                }`}
             >
               {st === 'ALL' ? 'All' : st === 'FAIL' ? 'Non-Compliant' : st === 'REVIEW' ? 'Needs Review' : 'Compliant'}
             </button>
@@ -173,7 +172,17 @@ export default function HistoryPage() {
                       })}
                     </td>
                     <td className="py-2 px-4">
-                      <StatusBadge status={scan.display_status} />
+                      <StatusBadge
+                        status={
+                          scan.display_status === "PASS"
+                            ? "good"
+                            : scan.display_status === "FAIL"
+                              ? "error"
+                              : scan.display_status === "REVIEW"
+                                ? "warning"
+                                : "pending"
+                        }
+                      />
                     </td>
                     <td className="py-2 px-4 text-center">
                       <RiskBadge

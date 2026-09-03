@@ -42,4 +42,13 @@ export interface ComplianceRule {
   description: string;
 }
 
-export type ComplianceStatus = "PASS" | "REVIEW" | "FAIL";
+export type ComplianceStatus =
+  | "PASS"
+  | "REVIEW"
+  | "FAIL"
+  | "DRAFT"
+  | "NOT_APPLICABLE"
+  | "good"
+  | "warning"
+  | "error"
+  | "pending";

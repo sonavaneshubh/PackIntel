@@ -90,10 +90,22 @@ export function DeclarationsView() {
   const handleSaveEdit = async () => {
     if (!editingItem || !extractedLabel) return;
 
-    const updateData: Partial<ExtractedLabel> = {
-      [editingItem.key]: editValue,
-      updated_at: new Date().toISOString(),
+    // Map declaration keys to actual Supabase extracted_labels columns.
+    const keyToColumn: Record<string, keyof ExtractedLabel> = {
+      manufacturer_name: 'manufacturer_name',
+      commodity_name: 'commodity_name',
+      net_quantity: 'net_quantity',
+      month_year_packed: 'month_year_packed',
+      mrp: 'mrp',
+      customer_care: 'customer_care_details',
+      unit_price: 'other_declarations',
     };
+    const column = keyToColumn[editingItem.key] ?? 'other_declarations';
+
+    const updateData: Partial<ExtractedLabel> = {
+      [column]: editValue,
+      updated_at: new Date().toISOString(),
+    } as Partial<ExtractedLabel>;
 
     try {
       const { error } = await supabase

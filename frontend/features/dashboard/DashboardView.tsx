@@ -39,7 +39,7 @@ export function DashboardView() {
       id: `EVD-${scan.inspection_number}`,
       productName: scan.product_name ?? 'Unknown Product',
       attribute: 'Statutory Declarations',
-      detectedValue: `Category: ${scan.category} | Manufacturer: ${scan.manufacturer}`,
+      detectedValue: `Category: ${scan.product_category ?? 'N/A'} | Manufacturer: ${scan.manufacturer_name ?? 'N/A'}`,
       ocrConfidence: 95,
       applicableRule: 'Legal Metrology (Packaged Commodities) Rules, 2011 — Rule 6(1)',
       ruleVersion: 'v2.4.1 Active',
@@ -386,7 +386,7 @@ export function DashboardView() {
                           </span>
                           <div className="absolute top-1 left-1">
                             <span className="text-[9px] font-mono font-bold bg-black/75 text-white px-1 py-0.5 rounded">
-                              {item.category.split(' ')[0]}
+                              {(item.product_category ?? 'N/A').split(' ')[0]}
                             </span>
                           </div>
                         </div>
@@ -415,7 +415,7 @@ export function DashboardView() {
 
                           <p className="text-xs font-semibold text-on-surface-variant mb-1.5">
                             Manufacturer:{' '}
-                            <span className="text-on-surface">{item.manufacturer}</span>
+                            <span className="text-on-surface">{item.manufacturer_name ?? 'N/A'}</span>
                           </p>
 
                           <div className="flex items-start gap-1.5 text-xs text-red-700 bg-red-50/80 p-2 rounded border border-red-100 max-w-2xl mb-2">
@@ -568,11 +568,11 @@ export function DashboardView() {
                                 {scan.product_name}
                               </div>
                               <span className="text-[10px] text-on-surface-variant font-mono">
-                                {scan.inspection_number} • {scan.category}
+                                {scan.inspection_number} • {scan.product_category ?? 'N/A'}
                               </span>
                             </td>
                             <td className="py-2.5 px-4 text-xs text-on-surface-variant">
-                              {scan.manufacturer}
+                              {scan.manufacturer_name ?? 'N/A'}
                             </td>
                             <td className="py-2.5 px-4 font-data-tabular text-on-surface-variant text-xs">
                               {new Date(scan.created_at || Date.now()).toLocaleDateString(

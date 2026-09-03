@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { ComplianceStatus } from '@/types/compliance';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  status?: ComplianceStatus | 'good' | 'warning' | 'error' | 'pending';
+  status?: ComplianceStatus;
   variant?: 'pill' | 'outline' | 'subtle';
   children?: React.ReactNode;
 }
@@ -14,16 +14,27 @@ export function StatusBadge({
   children,
   ...props
 }: BadgeProps) {
+  // Normalize all accepted statuses:
+  // PASS → good, FAIL → error, REVIEW → warning, DRAFT / NOT_APPLICABLE → pending
+  const normalized = String(status).toUpperCase();
+  const isPass = normalized === 'PASS' || normalized === 'GOOD';
+  const isReview = normalized === 'REVIEW' || normalized === 'WARNING';
+  const isFail = normalized === 'FAIL' || normalized === 'ERROR';
+  const isPending =
+    normalized === 'PENDING' ||
+    normalized === 'DRAFT' ||
+    normalized === 'NOT_APPLICABLE';
+
   let badgeStyle = 'bg-green-50 text-green-700 border-green-200';
   let dotColor = 'bg-green-500';
 
-  if (status === 'REVIEW' || status === 'warning') {
+  if (isReview) {
     badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200';
     dotColor = 'bg-amber-500';
-  } else if (status === 'FAIL' || status === 'error') {
+  } else if (isFail) {
     badgeStyle = 'bg-red-50 text-red-700 border-red-200';
     dotColor = 'bg-red-500';
-  } else if (status === 'pending') {
+  } else if (isPending || !isPass) {
     badgeStyle = 'bg-surface-container-highest text-on-surface-variant border-outline-variant';
     dotColor = 'bg-outline';
   }
