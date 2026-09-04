@@ -45,7 +45,7 @@ export function OcrAnalysisView() {
           .from('inspection_images')
           .select('*')
           .eq('inspection_id', inspectionId)
-          .order('uploaded_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(1);
 
         if (imgError) throw imgError;

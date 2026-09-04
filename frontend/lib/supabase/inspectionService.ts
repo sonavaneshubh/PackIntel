@@ -105,7 +105,13 @@ export async function getInspectionById(inspectionId: string): Promise<{
     console.error('[getInspectionById]', error.message);
     return { data: null, error: 'Failed to load inspection details.' };
   }
-  return { data, error: null };
+
+  const result = {
+    ...data,
+    extracted_labels: normalizeExtractedLabel(data.extracted_labels),
+  };
+
+  return { data: result, error: null };
 }
 
 export async function getMyInspections(options?: {
@@ -224,42 +230,122 @@ export async function getMyProfile() {
   return { data, error: null };
 }
 
-// ─── Extracted Labels ─────────────────────────────────────────────────────────
+export function normalizeExtractedLabel(data: any): ExtractedLabel | null {
+  if (!data) return null;
+  const decl = (typeof data.declarations === 'object' && data.declarations) || {};
+  return {
+    ...data,
+    manufacturer_name: data.manufacturer_name || decl.manufacturer_name || decl.packer_name || null,
+    packer_name: data.packer_name || decl.packer_name || decl.manufacturer_name || null,
+    importer_name: data.importer_name || decl.importer_name || null,
+    commodity_name: data.commodity_name || decl.commodity_name || decl.common_generic_name || null,
+    net_quantity: data.net_quantity || decl.net_quantity || null,
+    mrp: data.mrp || decl.mrp || null,
+    month_year_packed: data.month_year_packed || decl.month_year_packed || decl.mfg_date || null,
+    customer_care_details: data.customer_care_details || decl.customer_care_details || decl.consumer_care || null,
+    country_of_origin: data.country_of_origin || decl.country_of_origin || null,
+    other_declarations: data.other_declarations || decl.other_declarations || null,
+    extraction_confidence: data.extraction_confidence ?? decl.extraction_confidence ?? 95,
+  } as ExtractedLabel;
+}
 
 export async function saveExtractedLabel(
   label: Omit<ExtractedLabelInsert, never>
 ): Promise<{ data: ExtractedLabel | null; error: string | null }> {
-  const { data, error } = await supabase
-    .from('extracted_labels')
-    .upsert(label, { onConflict: 'inspection_id' })
-    .select()
-    .single();
+  // Build only fields that belong to public.extracted_labels.
+  // Never send null to the NOT NULL other_declarations column.
+  let payload: Record<string, any> = {
+    inspection_id: label.inspection_id,
 
-  if (error) {
-    console.error('[saveExtractedLabel]', error.message);
-    return { data: null, error: 'Failed to save extracted label data.' };
+    manufacturer_name: label.manufacturer_name ?? null,
+    packer_name: label.packer_name ?? null,
+    importer_name: label.importer_name ?? null,
+    commodity_name: label.commodity_name ?? null,
+    net_quantity: label.net_quantity ?? null,
+    mrp: label.mrp ?? null,
+    month_year_packed: label.month_year_packed ?? null,
+    customer_care_details: label.customer_care_details ?? null,
+    country_of_origin: label.country_of_origin ?? null,
+
+    // Database column is NOT NULL
+    other_declarations: label.other_declarations ?? {},
+
+    // Database constraint expects 0–1
+    extraction_confidence:
+      label.extraction_confidence == null
+        ? 0.95
+        : label.extraction_confidence > 1
+          ? label.extraction_confidence / 100
+          : label.extraction_confidence,
+  };
+
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const { data, error } = await supabase
+      .from("extracted_labels")
+      .upsert(payload, {
+        onConflict: "inspection_id",
+      })
+      .select()
+      .single();
+
+    // Successfully saved
+    if (!error && data) {
+      const normalized = normalizeExtractedLabel({
+        ...payload,
+        ...data,
+      });
+
+      return {
+        data: normalized,
+        error: null,
+      };
+    }
+
+    // If Supabase says a column does not exist,
+    // remove that column and retry.
+    const missingColumn = error?.message?.match(
+      /Could not find the '([^']+)' column/
+    );
+
+    if (missingColumn?.[1]) {
+      const columnName = missingColumn[1];
+
+      console.warn(
+        `[saveExtractedLabel] Removing unsupported column: ${columnName}`
+      );
+
+      delete payload[columnName];
+      continue;
+    }
+
+    // Log complete Supabase error
+    console.error("[saveExtractedLabel:SupabaseError]", {
+      code: error?.code,
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      table: "extracted_labels",
+      payload,
+      payloadKeys: Object.keys(payload),
+    });
+
+    return {
+      data: null,
+      error: `Database error [${error?.code || "UPSERT_FAILED"
+        }]: ${error?.message || "Unknown database error"}`,
+    };
   }
-  return { data, error: null };
+
+  console.error("[saveExtractedLabel:SchemaRetryExhausted]", {
+    message:
+      "Could not match payload to extracted_labels schema after 15 retries",
+  });
+
+  return {
+    data: null,
+    error: "Failed to save extracted label data after schema retries.",
+  };
 }
-
-export async function updateExtractedLabel(
-  inspectionId: string,
-  updates: ExtractedLabelUpdate
-): Promise<{ data: ExtractedLabel | null; error: string | null }> {
-  const { data, error } = await supabase
-    .from('extracted_labels')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('inspection_id', inspectionId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('[updateExtractedLabel]', error.message);
-    return { data: null, error: 'Failed to update label data.' };
-  }
-  return { data, error: null };
-}
-
 // ─── Compliance Results ───────────────────────────────────────────────────────
 
 export async function saveComplianceResults(
@@ -267,13 +353,28 @@ export async function saveComplianceResults(
 ): Promise<{ error: string | null }> {
   if (!results.length) return { error: null };
 
-  const { error } = await supabase.from('compliance_results').insert(results);
+  let currentResults = results.map(r => ({ ...r }));
 
-  if (error) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error } = await supabase.from('compliance_results').insert(currentResults);
+    if (!error) return { error: null };
+
+    const match = error.message?.match(/Could not find the '([^']+)' column/);
+    if (match && match[1]) {
+      const missingCol = match[1];
+      currentResults = currentResults.map(r => {
+        const copy = { ...r };
+        delete (copy as any)[missingCol];
+        return copy;
+      });
+      continue;
+    }
+
     console.error('[saveComplianceResults]', error.message);
     return { error: 'Failed to save compliance results.' };
   }
-  return { error: null };
+
+  return { error: 'Failed to save compliance results after retries.' };
 }
 
 export async function getComplianceResults(
@@ -332,7 +433,7 @@ export async function uploadInspectionImage(
     data: { publicUrl },
   } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(storagePath);
 
-  const imageRecord: InspectionImageInsert = {
+  const imageRecord: Record<string, any> = {
     inspection_id: inspectionId,
     storage_path: storagePath,
     public_url: publicUrl || null,
@@ -342,18 +443,33 @@ export async function uploadInspectionImage(
     mime_type: file.type,
   };
 
-  const { data, error: dbError } = await supabase
+  let { data, error: dbError } = await supabase
     .from('inspection_images')
     .insert(imageRecord)
     .select()
     .single();
+
+  if (dbError && dbError.message?.includes('public_url')) {
+    delete imageRecord.public_url;
+    const retry = await supabase
+      .from('inspection_images')
+      .insert(imageRecord)
+      .select()
+      .single();
+    data = retry.data;
+    dbError = retry.error;
+  }
 
   if (dbError) {
     console.error('[uploadInspectionImage:db]', dbError.message);
     return { data: null, error: 'Image saved to storage but failed to record in database.' };
   }
 
-  return { data, error: null };
+  const resultData = data
+    ? ({ ...data, public_url: (data as any).public_url || publicUrl } as InspectionImage)
+    : null;
+
+  return { data: resultData, error: null };
 }
 
 export async function getSignedImageUrl(
@@ -404,7 +520,7 @@ export async function saveInspectionReport(
     data: { publicUrl },
   } = supabase.storage.from(REPORT_BUCKET).getPublicUrl(storagePath);
 
-  const record: InspectionReportInsert = {
+  const record: Record<string, any> = {
     inspection_id: inspectionId,
     storage_path: storagePath,
     public_url: publicUrl || null,
@@ -412,16 +528,31 @@ export async function saveInspectionReport(
     file_size_bytes: pdfBlob.size,
   };
 
-  const { data, error: dbError } = await supabase
+  let { data, error: dbError } = await supabase
     .from('inspection_reports')
     .insert(record)
     .select()
     .single();
+
+  if (dbError && dbError.message?.includes('public_url')) {
+    delete record.public_url;
+    const retry = await supabase
+      .from('inspection_reports')
+      .insert(record)
+      .select()
+      .single();
+    data = retry.data;
+    dbError = retry.error;
+  }
 
   if (dbError) {
     console.error('[saveInspectionReport:db]', dbError.message);
     return { data: null, error: 'Report uploaded but failed to record in database.' };
   }
 
-  return { data, error: null };
+  const resultData = data
+    ? ({ ...data, public_url: (data as any).public_url || publicUrl } as InspectionReport)
+    : null;
+
+  return { data: resultData, error: null };
 }

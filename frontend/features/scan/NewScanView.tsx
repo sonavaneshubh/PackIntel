@@ -66,13 +66,14 @@ export function NewScanView() {
       return;
     }
 
-    if (!productForm.product_name || !productForm.manufacturer_name) {
-      alert('Please fill in Product Name and Manufacturer');
-      return;
-    }
-
     setIsProcessing(true);
-    const result = await runFullPipeline(selectedFile, productForm);
+    const finalProductForm = {
+      ...productForm,
+      product_name: productForm.product_name.trim() || 'Scanned Packaged Commodity',
+      manufacturer_name: productForm.manufacturer_name.trim() || 'Pending AI Extraction',
+    };
+
+    const result = await runFullPipeline(selectedFile, finalProductForm);
     setIsProcessing(false);
 
     if (!result.success) {
@@ -344,11 +345,12 @@ export function NewScanView() {
             </Button>
             <Button
               variant="primary"
-              icon="search_check"
+              icon={isProcessing ? 'sync' : 'search_check'}
+              disabled={isProcessing || !selectedFile}
               onClick={handleStartAnalysis}
               className="px-6 py-2.5"
             >
-              Analyze Product
+              {isProcessing ? 'Analyzing Product...' : 'Analyze Product'}
             </Button>
           </div>
         </div>

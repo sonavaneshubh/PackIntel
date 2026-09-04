@@ -73,7 +73,8 @@ export interface InspectionImage {
   file_size_bytes: number | null;
   mime_type: string | null;
   ocr_text: string | null;
-  uploaded_at: string;
+  created_at?: string;
+  uploaded_at?: string;
 }
 
 export type InspectionImageInsert = {
@@ -86,6 +87,7 @@ export type InspectionImageInsert = {
   file_size_bytes?: number | null;
   mime_type?: string | null;
   ocr_text?: string | null;
+  created_at?: string;
   uploaded_at?: string;
 };
 

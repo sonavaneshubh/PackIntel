@@ -97,7 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (isSupabaseConfigured) {
           const { data, error } = await supabase.auth.getSession();
-          if (!error && data?.session?.user && mounted) {
+          if (error) {
+            // Stale or invalid refresh token - clear session cleanly
+            await supabase.auth.signOut().catch(() => {});
+          } else if (data?.session?.user && mounted) {
             setSession(data.session);
             setSupabaseUser(data.session.user);
             const profile = await loadProfileFromSupabase(data.session.user);
