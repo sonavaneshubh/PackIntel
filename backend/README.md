@@ -29,7 +29,11 @@ Copy `.env` and fill in secrets:
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key-here
 FRONTEND_URL=http://localhost:3000
+TESSERACT_CMD=C:\\Program Files\\Tesseract-OCR\\tesseract.exe
 ```
+
+`TESSERACT_CMD` is optional. Leave it unset on Render because `render.yaml`
+installs Tesseract and the backend resolves it from the Linux PATH.
 
 ### 4. Run Server
 ```bash

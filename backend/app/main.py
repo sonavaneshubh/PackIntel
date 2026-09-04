@@ -1,13 +1,32 @@
+import logging
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.routes import scan, inspection, compliance, reports
+from app.services.ocr_service import get_tesseract_diagnostics
+
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    diagnostics = get_tesseract_diagnostics()
+    if diagnostics["available"]:
+        logger.info("OCR ready: Tesseract %s", diagnostics["version"])
+    else:
+        logger.warning("OCR unavailable: %s", diagnostics["message"])
+    yield
 
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",

@@ -6,6 +6,7 @@ import shutil
 from typing import Dict, Any
 import urllib.request
 from PIL import Image, ImageEnhance
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +19,76 @@ except ImportError:
 
 def _resolve_tesseract_command() -> str | None:
     """Resolve an optional configured command or the platform PATH entry."""
-    configured_command = os.getenv("TESSERACT_CMD", "").strip()
+    configured_command = (
+        os.getenv("TESSERACT_CMD", "").strip()
+        or settings.TESSERACT_CMD.strip()
+    )
     if configured_command:
         return shutil.which(configured_command) or (
             configured_command if os.path.isfile(configured_command) else None
         )
-    return shutil.which("tesseract")
+
+    path_command = shutil.which("tesseract")
+    if path_command:
+        return path_command
+
+    if os.name == "nt":
+        for candidate in (
+            os.path.join(os.environ.get("ProgramFiles", ""), "Tesseract-OCR", "tesseract.exe"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Tesseract-OCR", "tesseract.exe"),
+        ):
+            if os.path.isfile(candidate):
+                return candidate
+
+    return None
+
+
+def get_tesseract_diagnostics() -> Dict[str, Any]:
+    """Return a safe status describing the Python wrapper and native OCR binary."""
+    if not HAS_PYTESSERACT:
+        return {
+            "available": False,
+            "reason": "pytesseract_missing",
+            "message": "pytesseract is not installed",
+        }
+
+    configured_command = (
+        os.getenv("TESSERACT_CMD", "").strip()
+        or settings.TESSERACT_CMD.strip()
+    )
+    tesseract_command = _resolve_tesseract_command()
+    if not tesseract_command:
+        if configured_command:
+            return {
+                "available": False,
+                "reason": "tesseract_inaccessible",
+                "message": "TESSERACT_CMD is configured but the executable cannot be found.",
+            }
+        return {
+            "available": False,
+            "reason": "tesseract_missing",
+            "message": (
+                "Tesseract OCR is not installed or not available in PATH. "
+                "Install Tesseract or set TESSERACT_CMD to its executable."
+            ),
+        }
+
+    pytesseract.pytesseract.tesseract_cmd = tesseract_command
+    try:
+        version = str(pytesseract.get_tesseract_version()).strip()
+    except Exception:
+        return {
+            "available": False,
+            "reason": "tesseract_inaccessible",
+            "message": "Tesseract OCR is configured but cannot be executed.",
+        }
+
+    return {
+        "available": True,
+        "reason": "ok",
+        "message": "Tesseract OCR is available",
+        "version": version,
+    }
 
 
 class OCRService:
@@ -83,14 +148,13 @@ class OCRService:
         if not image_url:
             raise ValueError("Image URL is required for OCR scanning.")
 
+        diagnostics = get_tesseract_diagnostics()
+        if not diagnostics["available"]:
+            raise RuntimeError(diagnostics["message"])
+
         tesseract_command = _resolve_tesseract_command()
-        if not HAS_PYTESSERACT:
-            raise RuntimeError("pytesseract is not installed")
         if not tesseract_command:
-            raise RuntimeError(
-                "Tesseract OCR is not installed or not available in PATH. "
-                "Install Tesseract or set TESSERACT_CMD to its executable."
-            )
+            raise RuntimeError("Tesseract OCR became unavailable during startup")
 
         pytesseract.pytesseract.tesseract_cmd = tesseract_command
 
