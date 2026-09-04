@@ -106,8 +106,9 @@ function ResultsContent() {
 
   const hasReviewItems = complianceResults.some(r => r.result === 'warning');
   const hasFailItems = complianceResults.some(r => r.result === 'fail');
-  const overallStatus = hasFailItems ? 'FAIL' : hasReviewItems ? 'REVIEW' : 'PASS';
-  const complianceScore = hasFailItems ? 40 : hasReviewItems ? 75 : 95;
+  const insufficientInformation = inspection.overall_result === 'review' && inspection.risk_score === 0;
+  const overallStatus = insufficientInformation ? 'REVIEW' : hasFailItems ? 'FAIL' : hasReviewItems ? 'REVIEW' : 'PASS';
+  const complianceScore = insufficientInformation ? 0 : hasFailItems ? 40 : hasReviewItems ? 75 : 95;
 
   // Merge with rule descriptions from constants
   const enrichedResults = complianceResults.map(cr => {
@@ -154,7 +155,7 @@ function ResultsContent() {
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-display-lg font-display-lg text-primary">{complianceScore}%</span>
             <span className="text-xs text-green-700 font-semibold bg-green-50 px-2 py-0.5 rounded">
-              {overallStatus === 'PASS' ? 'Legal Standard Met' : overallStatus === 'REVIEW' ? 'Review Recommended' : 'Non-Compliant'}
+              {insufficientInformation ? 'Insufficient Information' : overallStatus === 'PASS' ? 'Legal Standard Met' : overallStatus === 'REVIEW' ? 'Review Recommended' : 'Non-Compliant'}
             </span>
           </div>
           <div className="w-full bg-surface-container-highest h-2 rounded-full mt-3 overflow-hidden">
@@ -188,7 +189,7 @@ function ResultsContent() {
             <span className="text-xs text-on-surface-variant">Risk Score (0-100)</span>
           </div>
           <p className="text-xs text-on-surface-variant mt-3">
-            {hasFailItems ? 'Statutory violations detected - penalties may apply under Section 36' : hasReviewItems ? 'Review recommended before market dispatch' : 'Zero non-compliance violations detected'}
+            {insufficientInformation ? inspection.notes || 'No readable package-label information was detected. Upload a clearer image.' : hasFailItems ? 'Statutory violations detected - penalties may apply under Section 36' : hasReviewItems ? 'Review recommended before market dispatch' : 'Zero non-compliance violations detected'}
           </p>
         </div>
       </div>

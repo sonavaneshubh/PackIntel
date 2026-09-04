@@ -1,5 +1,5 @@
 // API Client module for Backend FastAPI integration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface HealthResponse {
   status: string;
@@ -15,10 +15,17 @@ export interface ScanRequest {
 
 export interface ScanResponse {
   status: string;
+  success: boolean;
+  scan_completed: boolean;
   inspection_id: string;
   message: string;
   ocr_raw_text?: string;
   extracted_declarations?: Record<string, unknown>;
+  score: number;
+  compliance_score: number;
+  image_quality: string;
+  quality_reason?: string;
+  report?: string;
 }
 
 export interface ComplianceCheckRequest {

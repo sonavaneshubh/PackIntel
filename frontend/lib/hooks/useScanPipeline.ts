@@ -14,6 +14,8 @@ import {
 import { Inspection, ExtractedLabelInsert, ComplianceResultInsert, InspectionImage } from '@/types/database';
 import { complianceRules } from '@/lib/constants/complianceRules';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export interface ScanPipelineState {
   step: 'idle' | 'creating' | 'uploading' | 'ocr' | 'extracting' | 'compliance' | 'completed' | 'error';
   inspection: Inspection | null;
@@ -97,7 +99,7 @@ export function useScanPipeline() {
       updateState({ image, step: 'ocr', progress: 30 });
 
       // Step 3: Call backend for OCR processing
-      const ocrResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/scan`, {
+      const ocrResponse = await fetch(`${API_BASE_URL}/api/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -229,7 +231,15 @@ export function useScanPipeline() {
       let overallResult: 'pass' | 'fail' | 'review' | 'pending' = 'pending';
       let riskScore = 0;
 
-      if (failedCount > 0) {
+      if (
+        ocrData.score === 0 &&
+        (ocrData.status === 'insufficient_information' ||
+          ocrData.image_quality === 'poor' ||
+          ocrData.image_quality === 'unusable')
+      ) {
+        overallResult = 'review';
+        riskScore = 0;
+      } else if (failedCount > 0) {
         overallResult = 'fail';
         riskScore = Math.min(100, 60 + failedCount * 15);
       } else if (warningCount > 0) {
@@ -244,7 +254,7 @@ export function useScanPipeline() {
         status: 'completed',
         overall_result: overallResult,
         risk_score: riskScore,
-        notes: `Processed via scan pipeline. ${complianceResults.length} rules checked.`,
+        notes: ocrData.report || `Processed via scan pipeline. ${complianceResults.length} rules checked.`,
         inspected_at: new Date().toISOString(),
       });
 
