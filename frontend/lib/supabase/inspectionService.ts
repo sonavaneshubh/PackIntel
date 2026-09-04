@@ -416,7 +416,7 @@ export async function uploadInspectionImage(
   const fileName = `${imageType}_${Date.now()}.${ext}`;
   const storagePath = `${user.id}/${inspectionId}/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage
+  const { data: uploadData, error: uploadError } = await supabase.storage
     .from(IMAGE_BUCKET)
     .upload(storagePath, file, {
       cacheControl: '3600',
@@ -429,14 +429,40 @@ export async function uploadInspectionImage(
     return { data: null, error: 'Image upload failed. Please try again.' };
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(storagePath);
+  const uploadedPath = uploadData?.path || storagePath;
+  let signedUrlData: { signedUrl: string } | null = null;
+  let signedUrlError: { message: string } | null = null;
+
+  // Storage can briefly lag behind the upload response. Retry the exact path
+  // returned by Storage before reporting that the object is missing.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const signedResult = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .createSignedUrl(uploadedPath, 3600);
+    signedUrlData = signedResult.data;
+    signedUrlError = signedResult.error;
+
+    if (signedUrlData?.signedUrl) break;
+    if (attempt < 2) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+
+  if (signedUrlError || !signedUrlData?.signedUrl) {
+    console.error('[uploadInspectionImage:signedUrl]', {
+      bucket: IMAGE_BUCKET,
+      path: uploadedPath,
+      message: signedUrlError?.message,
+    });
+    return { data: null, error: 'Image uploaded but could not create a secure OCR URL.' };
+  }
+
+  const ocrUrl = signedUrlData.signedUrl;
 
   const imageRecord: Record<string, any> = {
     inspection_id: inspectionId,
-    storage_path: storagePath,
-    public_url: publicUrl || null,
+    storage_path: uploadedPath,
+    public_url: ocrUrl,
     image_type: imageType,
     file_name: file.name,
     file_size_bytes: file.size,
@@ -466,7 +492,7 @@ export async function uploadInspectionImage(
   }
 
   const resultData = data
-    ? ({ ...data, public_url: (data as any).public_url || publicUrl } as InspectionImage)
+    ? ({ ...data, public_url: (data as any).public_url || ocrUrl } as InspectionImage)
     : null;
 
   return { data: resultData, error: null };
