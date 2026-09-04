@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
 from app.api.routes import scan, inspection, compliance, reports
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -11,12 +13,23 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# Enable CORS for frontend development URL
+
+# ============================================================
+# CORS CONFIGURATION
+# ============================================================
+
 origins = [
     settings.FRONTEND_URL,
+
+    # Next.js development
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+
+    # Current frontend port
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,12 +39,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routers
-app.include_router(scan.router, prefix=settings.API_V1_STR, tags=["scan"])
-app.include_router(inspection.router, prefix=settings.API_V1_STR, tags=["inspection"])
-app.include_router(compliance.router, prefix=settings.API_V1_STR, tags=["compliance"])
-app.include_router(reports.router, prefix=settings.API_V1_STR, tags=["reports"])
 
+# ============================================================
+# API ROUTES
+# ============================================================
+
+app.include_router(
+    scan.router,
+    prefix=settings.API_V1_STR,
+    tags=["scan"],
+)
+
+app.include_router(
+    inspection.router,
+    prefix=settings.API_V1_STR,
+    tags=["inspection"],
+)
+
+app.include_router(
+    compliance.router,
+    prefix=settings.API_V1_STR,
+    tags=["compliance"],
+)
+
+app.include_router(
+    reports.router,
+    prefix=settings.API_V1_STR,
+    tags=["reports"],
+)
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
 
 @app.get("/health", tags=["health"])
 async def health_check():

@@ -5,9 +5,12 @@ from datetime import datetime
 
 class ScanRequest(BaseModel):
     image_url: Optional[str] = None
-    product_name: Optional[str] = "Premium Rice 5 kg"
-    category: Optional[str] = "food"
-    manufacturer: Optional[str] = "ABC Foods Pvt. Ltd."
+    product_name: Optional[str] = None
+    brand_name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    manufacturer_name: Optional[str] = None
+    category: Optional[str] = None
+    product_category: Optional[str] = None
     is_imported: Optional[bool] = False
 
 

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://your-project-id.supabase.co")
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    TESSERACT_CMD: str = os.getenv("TESSERACT_CMD", "")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
