@@ -5,7 +5,7 @@ import logging
 import shutil
 from typing import Dict, Any
 import urllib.request
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageFilter, ImageStat
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -140,6 +140,44 @@ class OCRService:
         image = enhancer.enhance(1.5)
         return image
 
+    @staticmethod
+    def _analyze_image_quality(image: Image.Image) -> Dict[str, Any]:
+        """Classify obvious image-quality problems before OCR is attempted."""
+        grayscale = image.convert("L")
+        width, height = image.size
+        stats = ImageStat.Stat(grayscale)
+        brightness = stats.mean[0]
+        contrast = stats.stddev[0]
+        edge_stats = ImageStat.Stat(grayscale.filter(ImageFilter.FIND_EDGES))
+        sharpness = edge_stats.stddev[0]
+
+        reasons = []
+        if width < 200 or height < 200:
+            reasons.append("image resolution is too low")
+        if brightness < 20:
+            reasons.append("image is too dark")
+        elif brightness > 240:
+            reasons.append("image is overexposed")
+        if contrast < 8:
+            reasons.append("image has insufficient contrast")
+        if sharpness < 4 and width >= 200 and height >= 200:
+            reasons.append("image is too blurry to reliably inspect")
+
+        return {
+            "width": width,
+            "height": height,
+            "brightness": round(brightness, 2),
+            "contrast": round(contrast, 2),
+            "sharpness": round(sharpness, 2),
+            "quality": "poor" if reasons else "usable",
+            "reason": "; ".join(reasons) if reasons else None,
+        }
+
+    @staticmethod
+    def _meaningful_text(text: str) -> bool:
+        meaningful = "".join(character for character in text if character.isalnum())
+        return len(meaningful) >= 4 and any(character.isalpha() for character in meaningful)
+
     @classmethod
     def process_image(cls, image_url: str) -> Dict[str, Any]:
         """
@@ -148,39 +186,92 @@ class OCRService:
         if not image_url:
             raise ValueError("Image URL is required for OCR scanning.")
 
+        try:
+            pil_img = cls._fetch_image(image_url)
+        except (OSError, ValueError) as err:
+            raise ValueError(f"Could not load image from input: {err}") from err
+
+        quality = cls._analyze_image_quality(pil_img)
         diagnostics = get_tesseract_diagnostics()
         if not diagnostics["available"]:
-            raise RuntimeError(diagnostics["message"])
+            return {
+                "status": "completed_with_warning",
+                "raw_text": "",
+                "text": "",
+                "confidence": 0.0,
+                "engine": "tesseract",
+                "lines": [],
+                "image_quality": "unusable",
+                "quality_reason": diagnostics["message"],
+                "quality": quality,
+            }
 
         tesseract_command = _resolve_tesseract_command()
         if not tesseract_command:
-            raise RuntimeError("Tesseract OCR became unavailable during startup")
+            return {
+                "status": "completed_with_warning",
+                "raw_text": "",
+                "text": "",
+                "confidence": 0.0,
+                "engine": "tesseract",
+                "lines": [],
+                "image_quality": "unusable",
+                "quality_reason": "Tesseract OCR is unavailable.",
+                "quality": quality,
+            }
 
         pytesseract.pytesseract.tesseract_cmd = tesseract_command
-
         try:
-            pil_img = cls._fetch_image(image_url)
             processed_img = cls._preprocess_image(pil_img)
-            ocr_text = pytesseract.image_to_string(processed_img).strip()
-        except Exception as err:
+        except (OSError, ValueError) as err:
+            quality["quality"] = "poor"
+            quality["reason"] = f"Image could not be prepared for OCR: {err}"
+            return {
+                "status": "completed_with_warning",
+                "raw_text": "",
+                "text": "",
+                "confidence": 0.0,
+                "engine": "tesseract",
+                "lines": [],
+                "image_quality": "unusable",
+                "quality_reason": quality["reason"],
+                "quality": quality,
+            }
+        candidates = []
+        ocr_warning = None
+        try:
+            for psm in (3, 6, 11):
+                try:
+                    text = pytesseract.image_to_string(processed_img, config=f"--psm {psm}").strip()
+                    if cls._meaningful_text(text):
+                        candidates.append(text)
+                except (pytesseract.TesseractError, OSError) as err:
+                    ocr_warning = str(err)
+        except (pytesseract.TesseractError, OSError) as err:
             logger.exception("OCR processing failed")
-            raise RuntimeError(f"OCR processing failed: {err}") from err
+            ocr_warning = str(err)
 
-        if not ocr_text:
-            raise RuntimeError("OCR returned no text for the supplied image")
+        ocr_text = max(candidates, key=len, default="")
+        if not ocr_text and ocr_warning:
+            quality["reason"] = f"OCR warning: {ocr_warning}"
+        elif not ocr_text and not quality["reason"]:
+            quality["reason"] = "No readable package-label information was detected."
 
-        confidence = 85.0
+        confidence = 85.0 if ocr_text else 0.0
         engine_used = "tesseract"
 
         lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
 
         return {
-            "status": "success",
+            "status": "success" if ocr_text else "completed_with_warning",
             "text": ocr_text,
             "raw_text": ocr_text,
             "confidence": confidence,
             "engine": engine_used,
             "lines": lines,
+            "image_quality": "poor" if quality["quality"] == "poor" else ("usable" if ocr_text else "unusable"),
+            "quality_reason": quality["reason"],
+            "quality": quality,
         }
 
 def get_ocr_service() -> OCRService:

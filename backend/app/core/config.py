@@ -1,4 +1,3 @@
-import os
 import re
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,10 +7,10 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
 
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://your-project-id.supabase.co")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    TESSERACT_CMD: str = os.getenv("TESSERACT_CMD", "")
+    SUPABASE_URL: str = "https://your-project-id.supabase.co"
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    FRONTEND_URL: str = "http://localhost:3000"
+    TESSERACT_CMD: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

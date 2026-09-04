@@ -16,10 +16,17 @@ class ScanRequest(BaseModel):
 
 class ScanResponse(BaseModel):
     status: str = "success"
+    success: bool = True
+    scan_completed: bool = True
     inspection_id: str
     message: str = "Scan processing started successfully."
     ocr_raw_text: Optional[str] = None
     extracted_declarations: Optional[Dict[str, Any]] = None
+    score: int = 0
+    compliance_score: int = 0
+    image_quality: str = "unknown"
+    quality_reason: Optional[str] = None
+    report: Optional[str] = None
 
 
 class InspectionCreate(BaseModel):

@@ -32,8 +32,8 @@ FRONTEND_URL=http://localhost:3000
 TESSERACT_CMD=C:\\Program Files\\Tesseract-OCR\\tesseract.exe
 ```
 
-`TESSERACT_CMD` is optional. Leave it unset on Render because `render.yaml`
-installs Tesseract and the backend resolves it from the Linux PATH.
+`TESSERACT_CMD` is optional. The backend resolves Tesseract from PATH when it is
+available, and also detects the standard Windows installation path.
 
 ### 4. Run Server
 ```bash
