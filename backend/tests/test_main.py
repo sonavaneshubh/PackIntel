@@ -12,10 +12,8 @@ def test_health_check():
 
 def test_scan_endpoint():
     response = client.post("/api/scan", json={"product_name": "Test Rice"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "inspection_id" in data
+    assert response.status_code == 400
+    assert response.json()["detail"] == "image_url is required for OCR scanning"
 
 
 def test_compliance_check_endpoint():

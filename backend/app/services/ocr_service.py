@@ -1,36 +1,29 @@
 import io
 import os
-import re
 import base64
 import logging
-from typing import Dict, Any, List, Optional
+import shutil
+from typing import Dict, Any
 import urllib.request
-import urllib.parse
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance
 
 logger = logging.getLogger(__name__)
 
-# Check for Tesseract binary in common Windows paths
-TESSERACT_PATHS = [
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-    r"C:\Users\Dnyaneshwar\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
-    os.getenv("TESSERACT_CMD", ""),
-]
-
-FOUND_TESSERACT_CMD = None
-for cmd_path in TESSERACT_PATHS:
-    if cmd_path and os.path.isfile(cmd_path):
-        FOUND_TESSERACT_CMD = cmd_path
-        break
-
 try:
     import pytesseract
-    if FOUND_TESSERACT_CMD:
-        pytesseract.pytesseract.tesseract_cmd = FOUND_TESSERACT_CMD
     HAS_PYTESSERACT = True
 except ImportError:
     HAS_PYTESSERACT = False
+
+
+def _resolve_tesseract_command() -> str | None:
+    """Resolve an optional configured command or the platform PATH entry."""
+    configured_command = os.getenv("TESSERACT_CMD", "").strip()
+    if configured_command:
+        return shutil.which(configured_command) or (
+            configured_command if os.path.isfile(configured_command) else None
+        )
+    return shutil.which("tesseract")
 
 
 class OCRService:
@@ -62,7 +55,6 @@ class OCRService:
         if os.path.exists(image_input):
             return Image.open(image_input)
 
-        # Fallback for mock/test image strings or unresolved paths
         raise ValueError(f"Could not load image from input: {image_input[:50]}")
 
     @staticmethod
@@ -91,41 +83,30 @@ class OCRService:
         if not image_url:
             raise ValueError("Image URL is required for OCR scanning.")
 
+        tesseract_command = _resolve_tesseract_command()
+        if not HAS_PYTESSERACT:
+            raise RuntimeError("pytesseract is not installed")
+        if not tesseract_command:
+            raise RuntimeError(
+                "Tesseract OCR is not installed or not available in PATH. "
+                "Install Tesseract or set TESSERACT_CMD to its executable."
+            )
+
+        pytesseract.pytesseract.tesseract_cmd = tesseract_command
+
         try:
             pil_img = cls._fetch_image(image_url)
             processed_img = cls._preprocess_image(pil_img)
+            ocr_text = pytesseract.image_to_string(processed_img).strip()
         except Exception as err:
-            logger.warning(f"Image fetch/preprocessing error: {err}. Processing with label text fallback.")
-            ocr_text = cls._fallback_ocr_extraction(None, image_url)
-            return {
-                "status": "success",
-                "text": ocr_text,
-                "raw_text": ocr_text,
-                "confidence": 80.0,
-                "engine": "vision_fallback",
-                "lines": [line.strip() for line in ocr_text.splitlines() if line.strip()],
-            }
+            logger.exception("OCR processing failed")
+            raise RuntimeError(f"OCR processing failed: {err}") from err
 
-        ocr_text = ""
+        if not ocr_text:
+            raise RuntimeError("OCR returned no text for the supplied image")
+
         confidence = 85.0
         engine_used = "tesseract"
-
-        # Attempt 1: Pytesseract if binary is available
-        if HAS_PYTESSERACT and (FOUND_TESSERACT_CMD or cls._test_pytesseract()):
-            try:
-                ocr_text = pytesseract.image_to_string(processed_img)
-                ocr_text = ocr_text.strip()
-                if ocr_text:
-                    engine_used = "tesseract"
-            except Exception as e:
-                logger.warning(f"Pytesseract execution failed: {e}")
-                ocr_text = ""
-
-        # Attempt 2: Fallback Vision Extraction if Pytesseract returns empty or is not installed
-        if not ocr_text:
-            ocr_text = cls._fallback_ocr_extraction(processed_img, image_url)
-            engine_used = "vision_fallback"
-            confidence = 80.0
 
         lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
 
@@ -137,35 +118,6 @@ class OCRService:
             "engine": engine_used,
             "lines": lines,
         }
-
-    @staticmethod
-    def _test_pytesseract() -> bool:
-        try:
-            import pytesseract
-            # Test simple call
-            pytesseract.get_tesseract_version()
-            return True
-        except Exception:
-            return False
-
-    @staticmethod
-    def _fallback_ocr_extraction(image: Image.Image, image_url: str) -> str:
-        """
-        Extracts OCR text when Tesseract binary is unavailable.
-        Returns label declarations based on product metadata or image analysis.
-        """
-        return (
-            "PACKINTEL LEGAL METROLOGY INSPECTION\n"
-            "Product: Premium Basmati Rice\n"
-            "Net Quantity: 5 kg\n"
-            "MRP: Rs. 450.00 (Incl. of all taxes)\n"
-            "Mfg Date: 01/2026\n"
-            "Manufacturer: ABC Foods India Pvt Ltd, Plot 42, Industrial Area, New Delhi - 110020\n"
-            "Packer: ABC Foods India Pvt Ltd\n"
-            "Country of Origin: India\n"
-            "Consumer Care: customercare@abcfoods.com, Tel: 1800-111-2222"
-        )
-
 
 def get_ocr_service() -> OCRService:
     """Factory function to get configured OCR service."""

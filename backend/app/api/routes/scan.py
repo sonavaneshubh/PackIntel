@@ -14,28 +14,18 @@ async def create_scan(request: ScanRequest, current_user: dict = Depends(get_cur
     POST /api/scan
     Receives image/product payload, executes OCR processing and declaration extraction.
     """
-    # 1. Image URL validation & fallback handling
-    image_url = request.image_url or ""
+    image_url = request.image_url
+    if not image_url:
+        raise HTTPException(status_code=400, detail="image_url is required for OCR scanning")
 
     # 2. Run OCR processing
     try:
         ocr_service = get_ocr_service()
         ocr_result = ocr_service.process_image(image_url)
-    except Exception as e:
-        ocr_result = {
-            "raw_text": (
-                "PACKINTEL LEGAL METROLOGY INSPECTION\n"
-                f"Product: {request.product_name or 'Premium Basmati Rice'}\n"
-                "Net Quantity: 5 kg\n"
-                "MRP: Rs. 450.00 (Incl. of all taxes)\n"
-                "Mfg Date: 01/2026\n"
-                f"Manufacturer: {request.manufacturer or 'ABC Foods India Pvt Ltd'}, Plot 42, Industrial Area\n"
-                "Country of Origin: India\n"
-                "Consumer Care: customercare@abcfoods.com"
-            ),
-            "confidence": 85.0,
-            "engine": "fallback"
-        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     # 3. Extract Legal Metrology declarations
     try:

@@ -90,26 +90,6 @@ class AIService:
             declarations["consumer_care"] = care_match.group(1).strip()
             declarations["customer_care_details"] = care_match.group(1).strip()
 
-        # Fallback values if text contained information but regex didn't capture specific keys
-        if not declarations["manufacturer_name"] and "ABC Foods" in text:
-            declarations["manufacturer_name"] = "ABC Foods India Pvt Ltd"
-            declarations["packer_name"] = "ABC Foods India Pvt Ltd"
-        if not declarations["net_quantity"] and "5 kg" in text:
-            declarations["net_quantity"] = "5 kg"
-        if not declarations["mrp"] and ("450" in text or "500" in text):
-            declarations["mrp"] = "Rs. 450.00 (Incl. of all taxes)"
-        if not declarations["mfg_date"] and "01/2026" in text:
-            declarations["mfg_date"] = "01/2026"
-            declarations["month_year_packed"] = "01/2026"
-        if not declarations["commodity_name"] and ("Rice" in text or "Basmati" in text):
-            declarations["commodity_name"] = "Premium Basmati Rice"
-            declarations["common_generic_name"] = "Premium Basmati Rice"
-        if not declarations["country_of_origin"] and "India" in text:
-            declarations["country_of_origin"] = "India"
-        if not declarations["consumer_care"] and "customercare" in text:
-            declarations["consumer_care"] = "customercare@abcfoods.com, Tel: 1800-111-2222"
-            declarations["customer_care_details"] = "customercare@abcfoods.com, Tel: 1800-111-2222"
-
         return declarations
 
 
