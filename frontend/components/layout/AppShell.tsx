@@ -52,12 +52,12 @@ export function AppShell({ children, pageTitle }: AppShellProps) {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:ml-[260px] min-h-screen overflow-x-hidden">
+      <div className="flex-1 flex flex-col md:ml-[220px] min-h-screen overflow-x-hidden">
         <TopNavBar
           pageTitle={pageTitle}
           onMenuToggle={() => setSidebarOpen((prev) => !prev)}
         />
-        <main className="flex-1 p-4 md:p-6 lg:p-container_margin overflow-y-auto">
+        <main className="flex-1 bg-background p-3 md:p-4 overflow-y-auto">
           {children}
         </main>
         <Footer />

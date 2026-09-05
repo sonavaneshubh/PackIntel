@@ -77,26 +77,26 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md bg-surface border border-outline-variant rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+    <div className="relative w-full max-w-lg overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_32px_rgba(25,28,29,0.08)] sm:p-8">
       {/* Top Brand & Emblem Header */}
-      <div className="flex flex-col items-center text-center mb-6">
-        <div className="w-14 h-14 rounded-2xl bg-primary text-on-primary flex items-center justify-center font-bold text-2xl shadow-md mb-3 border border-primary/20">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-primary/20 bg-primary text-2xl font-bold text-on-primary shadow-md">
           <span className="material-symbols-outlined text-[32px]">verified_user</span>
         </div>
-        <h1 className="text-2xl font-bold font-sans text-on-surface tracking-tight">
+        <h1 className="text-display-lg-mobile font-display-lg text-on-surface md:text-display-lg">
           PackIntel
         </h1>
-        <p className="text-xs font-semibold text-primary uppercase tracking-wider mt-0.5">
+        <p className="text-label-bold font-label-bold text-primary uppercase tracking-wider mt-0.5">
           Legal Metrology Compliance Inspection Platform
         </p>
-        <p className="text-[11px] text-on-surface-variant mt-1.5 font-medium">
+        <p className="mt-1.5 text-body-sm font-body-sm text-on-surface-variant">
           Scan. Verify. Compare. Detect. Prioritize.
         </p>
       </div>
 
       {/* Error Alert Box */}
       {errorMessage && (
-        <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="mb-5 flex items-start gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-body-sm font-body-sm text-[#B91C1C] animate-in fade-in slide-in-from-top-1 duration-150">
           <span className="material-symbols-outlined text-red-600 text-[18px] shrink-0 mt-0.5">
             error
           </span>
@@ -105,12 +105,12 @@ export function LoginForm() {
       )}
 
       {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         {/* Email Field */}
         <div>
           <label
             htmlFor="inspector_email"
-            className="block text-xs font-label-bold font-semibold uppercase tracking-wider text-on-surface mb-1.5"
+            className="block text-label-bold font-label-bold uppercase tracking-wider text-on-surface mb-1.5"
           >
             Inspector Email
           </label>
@@ -129,7 +129,7 @@ export function LoginForm() {
               }}
               placeholder="Enter inspector email"
               disabled={isSubmitting || isDemoSubmitting}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-10 pr-3.5 py-2.5 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="h-14 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-10 pr-3.5 text-body-base font-body-base text-on-surface placeholder:text-outline transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>
@@ -139,13 +139,13 @@ export function LoginForm() {
           <div className="flex justify-between items-center mb-1.5">
             <label
               htmlFor="inspector_password"
-              className="block text-xs font-label-bold font-semibold uppercase tracking-wider text-on-surface"
+              className="block text-label-bold font-label-bold uppercase tracking-wider text-on-surface"
             >
               Password
             </label>
             <Link
               href="/forgot-password"
-              className="text-[11px] text-primary hover:text-primary-container font-semibold hover:underline"
+              className="text-body-sm font-label-bold text-primary hover:text-primary-container hover:underline"
             >
               Forgot Password?
             </Link>
@@ -165,7 +165,7 @@ export function LoginForm() {
               }}
               placeholder="Enter password"
               disabled={isSubmitting || isDemoSubmitting}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-10 pr-10 py-2.5 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="h-14 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-10 pr-10 text-body-base font-body-base text-on-surface placeholder:text-outline transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
             />
             <button
               type="button"
@@ -187,7 +187,7 @@ export function LoginForm() {
             type="submit"
             variant="primary"
             disabled={isSubmitting || isDemoSubmitting}
-            className="w-full py-2.5 shadow-sm justify-center text-xs font-bold tracking-wide"
+            className="h-14 w-full justify-center rounded-lg bg-primary-container text-sm font-label-bold tracking-wide shadow-sm hover:bg-primary"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -205,7 +205,7 @@ export function LoginForm() {
 
         {/* Sign Up Link Option */}
         <div className="text-center pt-2">
-          <p className="text-xs text-on-surface-variant">
+          <p className="text-body-sm font-body-sm text-on-surface-variant">
             Don&apos;t have an inspector account yet?{' '}
             <Link href="/signup" className="text-primary font-bold hover:underline">
               Create account
@@ -217,10 +217,10 @@ export function LoginForm() {
       {/* Demo Section for SIH Presentation */}
       <div className="mt-5 pt-4 border-t border-outline-variant/70">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-label-bold font-bold uppercase tracking-wider text-on-surface-variant">
+          <span className="text-label-bold font-label-bold uppercase tracking-wider text-on-surface-variant">
             SIH 2026 Evaluation
           </span>
-          <span className="text-[9px] font-mono text-green-700 font-bold bg-green-50 px-1.5 py-0.5 rounded border border-green-200">
+          <span className="rounded border border-[#BBF7D0] bg-[#F0FDF4] px-1.5 py-0.5 text-label-bold font-label-bold text-[#15803D]">
             Instant Access
           </span>
         </div>
@@ -230,7 +230,7 @@ export function LoginForm() {
           variant="secondary"
           onClick={handleDemoSignIn}
           disabled={isSubmitting || isDemoSubmitting}
-          className="w-full py-2 border-dashed border-primary/50 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold justify-center shadow-none transition-colors"
+          className="h-12 w-full justify-center border-dashed border-primary/50 text-body-sm font-label-bold text-primary shadow-none transition-colors hover:border-primary hover:bg-primary/5"
         >
           {isDemoSubmitting ? (
             <span className="flex items-center gap-2">
@@ -244,14 +244,14 @@ export function LoginForm() {
             </span>
           )}
         </Button>
-        <p className="text-[10px] text-center text-outline mt-1.5">
+        <p className="mt-1.5 text-center text-body-sm font-body-sm text-outline">
           Pre-configures authorized Legal Metrology officer credentials for live jury inspection.
         </p>
       </div>
 
       {/* Official Government Disclaimer */}
       <div className="mt-5 pt-3 border-t border-outline-variant/50 text-center">
-        <p className="text-[10px] text-on-surface-variant flex items-center justify-center gap-1">
+        <p className="flex items-center justify-center gap-1 text-body-sm font-body-sm text-on-surface-variant">
           <span className="material-symbols-outlined text-[14px] text-primary">security</span>
           Authorized Personnel Only • Ministry of Consumer Affairs, Govt. of India
         </p>

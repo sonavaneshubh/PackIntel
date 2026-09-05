@@ -1,309 +1,84 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase/client';
-import { Inspection, ComplianceResultRow, ExtractedLabel } from '@/types/database';
+import { getSignedImageUrl } from '@/lib/supabase/inspectionService';
+import { api } from '@/lib/api';
+import { Inspection, ComplianceResultRow, ExtractedLabel, InspectionImage } from '@/types/database';
 import { complianceRules } from '@/lib/constants/complianceRules';
 
-interface ComplianceResultWithRule extends ComplianceResultRow {
-  ruleDescription?: string;
-  mandatory?: boolean;
-}
+interface ComplianceResultWithRule extends ComplianceResultRow { ruleDescription?: string; }
+const productFields = [['Product name', 'commodity_name'], ['Brand', 'brand_name'], ['Net quantity', 'net_quantity'], ['MRP', 'mrp'], ['Manufacture / pack date', 'month_year_packed'], ['Manufacturer', 'manufacturer_name'], ['Packer', 'packer_name'], ['Importer', 'importer_name'], ['Country of origin', 'country_of_origin'], ['Consumer care', 'customer_care_details']] as const;
 
-export default function ResultsPage() {
-  return (
-    <Suspense fallback={null}>
-      <ResultsContent />
-    </Suspense>
-  );
-}
+export default function ResultsPage() { return <Suspense fallback={null}><ResultsContent /></Suspense>; }
 
 function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inspectionId = searchParams.get('inspection');
-
   const [inspection, setInspection] = useState<Inspection | null>(null);
-  const [complianceResults, setComplianceResults] = useState<ComplianceResultWithRule[]>([]);
-  const [extractedLabel, setExtractedLabel] = useState<ExtractedLabel | null>(null);
+  const [results, setResults] = useState<ComplianceResultWithRule[]>([]);
+  const [label, setLabel] = useState<ExtractedLabel | null>(null);
+  const [image, setImage] = useState<InspectionImage | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
 
   useEffect(() => {
-    if (!inspectionId) {
-      setError('No inspection ID provided');
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchData = async () => {
+    if (!inspectionId) { setError('No inspection ID was provided.'); setIsLoading(false); return; }
+    const loadReport = async () => {
       try {
-        // Fetch inspection with related data
-        const { data: inspData, error: inspError } = await supabase
-          .from('inspections')
-          .select(`
-            *,
-            extracted_labels (*),
-            compliance_results (*),
-            inspection_images (*)
-          `)
-          .eq('id', inspectionId)
-          .single();
-
-        if (inspError) throw inspError;
-
-        if (inspData) {
-          setInspection(inspData);
-          setExtractedLabel(inspData.extracted_labels?.[0] || null);
-          setComplianceResults(inspData.compliance_results || []);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load results');
-      } finally {
-        setIsLoading(false);
-      }
+        const { data, error: queryError } = await supabase.from('inspections').select('*, extracted_labels (*), compliance_results (*), inspection_images (*)').eq('id', inspectionId).single();
+        if (queryError) throw queryError;
+        setInspection(data); setLabel(data.extracted_labels?.[0] || null); setResults(data.compliance_results || []);
+        const latestImage = data.inspection_images?.[0] || null; setImage(latestImage);
+        if (latestImage?.storage_path) { const signed = await getSignedImageUrl(latestImage.storage_path); setImageUrl(signed.url || latestImage.public_url || null); }
+      } catch { setError('We could not load this inspection.'); } finally { setIsLoading(false); }
     };
-
-    fetchData();
+    void loadReport();
   }, [inspectionId]);
 
-  const handleDownloadReport = () => {
-    setDownloadSuccess(true);
-    setTimeout(() => setDownloadSuccess(false), 3000);
+  const enrichedResults = useMemo(() => results.map((result) => ({ ...result, ruleDescription: complianceRules.find((rule) => rule.id === result.rule_code)?.description })), [results]);
+  const counts = useMemo(() => ({ verified: results.filter((result) => result.result === 'pass').length, review: results.filter((result) => result.result === 'warning').length, failed: results.filter((result) => result.result === 'fail').length, notDetected: results.filter((result) => result.result === 'not_applicable' || !result.extracted_value).length }), [results]);
+  const score = inspection?.risk_score === 0 && inspection.overall_result === 'review' ? 0 : results.length > 0 ? Math.round((counts.verified / results.length) * 100) : 0;
+  const status = getStatus(inspection, counts, results.length);
+  const confidence = getConfidence(label, image, score);
+  const issues = enrichedResults.filter((result) => result.result === 'fail' || result.result === 'warning' || !result.extracted_value);
+  const rawOcr = image?.ocr_text || label?.raw_ocr_text || '';
+  const populatedFields = productFields.map(([name, key]) => ({ name, value: key === 'brand_name' ? inspection?.brand_name : key === 'commodity_name' ? label?.commodity_name || inspection?.product_name : label?.[key as keyof ExtractedLabel] })).filter((field): field is { name: (typeof productFields)[number][0]; value: string } => typeof field.value === 'string' && field.value.trim().length > 0);
+
+  const handlePdf = async () => {
+    setReportMessage('Preparing report...');
+    try { const report = await api.generateReport({ inspection_id: inspectionId || '', format: 'pdf' }); if (report.download_url.startsWith('http')) window.open(report.download_url, '_blank', 'noopener,noreferrer'); else window.print(); setReportMessage('Use “Save as PDF” in the print dialog to download this report.'); } catch { window.print(); setReportMessage('Report prepared for printing. Use “Save as PDF” to download it.'); }
   };
 
-  if (isLoading) {
-    return (
-      <AppShell pageTitle="Compliance Results">
-        <div className="max-w-5xl mx-auto w-full flex flex-col items-center justify-center py-12">
-          <span className="material-symbols-outlined text-4xl text-primary animate-spin mb-4">autorenew</span>
-          <p className="text-body-base text-on-surface-variant">Loading compliance results...</p>
-        </div>
-      </AppShell>
-    );
-  }
+  if (isLoading) return <AppShell pageTitle="Inspection Report"><LoadingState /></AppShell>;
+  if (error || !inspection) return <AppShell pageTitle="Inspection Report"><ErrorState message={error || 'Inspection not found.'} onNewScan={() => router.push('/scan/new')} /></AppShell>;
 
-  if (error || !inspection) {
-    return (
-      <AppShell pageTitle="Results Error">
-        <div className="max-w-md mx-auto text-center py-12">
-          <span className="material-symbols-outlined text-6xl text-error mb-4">error</span>
-          <h2 className="text-headline-lg font-headline-lg text-on-surface mb-2">Failed to Load Results</h2>
-          <p className="text-body-base text-on-surface-variant mb-6">{error || 'Inspection not found'}</p>
-          <Button variant="primary" onClick={() => router.push('/scan/new')}>
-            Start New Scan
-          </Button>
-        </div>
-      </AppShell>
-    );
-  }
-
-  const hasReviewItems = complianceResults.some(r => r.result === 'warning');
-  const hasFailItems = complianceResults.some(r => r.result === 'fail');
-  const insufficientInformation = inspection.overall_result === 'review' && inspection.risk_score === 0;
-  const overallStatus = insufficientInformation ? 'REVIEW' : hasFailItems ? 'FAIL' : hasReviewItems ? 'REVIEW' : 'PASS';
-  const complianceScore = insufficientInformation ? 0 : hasFailItems ? 40 : hasReviewItems ? 75 : 95;
-
-  // Merge with rule descriptions from constants
-  const enrichedResults = complianceResults.map(cr => {
-    const rule = complianceRules.find(r => r.id === cr.rule_code);
-    return {
-      ...cr,
-      ruleDescription: rule?.description,
-      mandatory: rule?.mandatory,
-    };
-  });
-
-  return (
-    <AppShell pageTitle="Compliance Results">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-display-lg-mobile md:text-display-lg font-display-lg text-on-surface">
-              Compliance Results & Report
-            </h2>
-            <StatusBadge status={overallStatus} />
-          </div>
-          <p className="text-body-base font-body-base text-on-surface-variant mt-1">
-            Audit summary for <strong>{inspection.product_name || 'Unknown Product'}</strong> under Legal Metrology Rules, 2011.
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <Button variant="secondary" icon="description" onClick={handleDownloadReport}>
-            {downloadSuccess ? 'Report Downloaded!' : 'Export PDF Report'}
-          </Button>
-          <Link href="/scan/new">
-            <Button variant="primary" icon="add">New Scan</Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-xs">
-          <span className="text-label-bold font-label-bold text-on-surface-variant uppercase text-xs">
-            Overall Compliance Score
-          </span>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-display-lg font-display-lg text-primary">{complianceScore}%</span>
-            <span className="text-xs text-green-700 font-semibold bg-green-50 px-2 py-0.5 rounded">
-              {insufficientInformation ? 'Insufficient Information' : overallStatus === 'PASS' ? 'Legal Standard Met' : overallStatus === 'REVIEW' ? 'Review Recommended' : 'Non-Compliant'}
-            </span>
-          </div>
-          <div className="w-full bg-surface-container-highest h-2 rounded-full mt-3 overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-1000 ${overallStatus === 'PASS' ? 'bg-green-500' : overallStatus === 'REVIEW' ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${complianceScore}%` }} />
-          </div>
-        </div>
-
-        <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-xs">
-          <span className="text-label-bold font-label-bold text-on-surface-variant uppercase text-xs">
-            Rules Evaluated
-          </span>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-display-lg font-display-lg text-on-surface">
-              {enrichedResults.length} / {complianceRules.length}
-            </span>
-            <span className="text-xs text-on-surface-variant">Rule 6(1) items</span>
-          </div>
-          <p className="text-xs text-on-surface-variant mt-3">
-            {enrichedResults.filter(r => r.result === 'pass').length} passed, {enrichedResults.filter(r => r.result === 'fail').length} failed, {enrichedResults.filter(r => r.result === 'warning').length} warnings
-          </p>
-        </div>
-
-        <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-xs">
-          <span className="text-label-bold font-label-bold text-on-surface-variant uppercase text-xs">
-            Risk & Penalty Assessment
-          </span>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className={`text-display-lg font-display-lg ${hasFailItems ? 'text-red-600' : hasReviewItems ? 'text-amber-600' : 'text-green-600'}`}>
-              {inspection.risk_score ?? 0}
-            </span>
-            <span className="text-xs text-on-surface-variant">Risk Score (0-100)</span>
-          </div>
-          <p className="text-xs text-on-surface-variant mt-3">
-            {insufficientInformation ? inspection.notes || 'No readable package-label information was detected. Upload a clearer image.' : hasFailItems ? 'Statutory violations detected - penalties may apply under Section 36' : hasReviewItems ? 'Review recommended before market dispatch' : 'Zero non-compliance violations detected'}
-          </p>
-        </div>
-      </div>
-
-      {/* Statutory Checklist Table */}
-      <div className="bg-surface border border-outline-variant rounded-xl shadow-xs overflow-hidden mb-8">
-        <div className="p-5 border-b border-outline-variant bg-surface flex justify-between items-center">
-          <h3 className="text-headline-md font-headline-md text-on-surface">
-            Statutory Rule Breakdown
-          </h3>
-          <Link href={`/scan/declarations?inspection=${inspectionId}`} className="text-xs text-primary hover:underline font-semibold">
-            Edit Detected Declarations →
-          </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-bright border-b border-outline-variant text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
-                <th className="py-3 px-4 w-44">Clause</th>
-                <th className="py-3 px-4">Required Attribute</th>
-                <th className="py-3 px-4">Detected Value</th>
-                <th className="py-3 px-4 w-32">Status</th>
-                <th className="py-3 px-4 w-28 text-right">Risk</th>
-              </tr>
-            </thead>
-            <tbody className="text-body-base font-body-base text-on-surface divide-y divide-outline-variant/60">
-              {enrichedResults.map((item, idx) => (
-                <tr key={item.id} className="hover:bg-surface-container-lowest transition-colors h-14">
-                  <td className="py-2 px-4 font-mono text-xs text-on-surface-variant">
-                    {item.rule_code}
-                  </td>
-                  <td className="py-2 px-4 font-semibold text-xs text-on-surface">
-                    {item.rule_name}
-                  </td>
-                  <td className="py-2 px-4 text-xs font-data-tabular max-w-xs truncate">
-                    {item.extracted_value || '<Not detected>'}
-                  </td>
-                  <td className="py-2 px-4">
-                    <StatusBadge
-                      status={
-                        item.result.toUpperCase() === "PASS"
-                          ? "good"
-                          : item.result.toUpperCase() === "FAIL"
-                            ? "error"
-                            : item.result.toUpperCase() === "REVIEW" || item.result.toUpperCase() === "WARNING"
-                              ? "warning"
-                              : "pending"
-                      }
-                    />
-                  </td>
-                  <td className="py-2 px-4 text-right font-data-tabular text-xs">
-                    {item.result === 'fail' ? 'High' : item.result === 'warning' ? 'Medium' : 'Low'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Detailed Explanations */}
-      <div className="bg-surface border border-outline-variant rounded-xl shadow-xs overflow-hidden">
-        <div className="p-5 border-b border-outline-variant bg-surface">
-          <h3 className="text-headline-md font-headline-md text-on-surface">Detailed Explanations & Evidence</h3>
-        </div>
-        <div className="divide-y divide-outline-variant/60">
-          {enrichedResults.map((item) => (
-            <div key={item.id} className="p-5 hover:bg-surface-container-lowest transition-colors">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs text-on-surface-variant">{item.rule_code}</span>
-                    <span className="font-semibold text-sm text-on-surface">{item.rule_name}</span>
-                    <StatusBadge
-                      status={
-                        item.result.toUpperCase() === "PASS"
-                          ? "good"
-                          : item.result.toUpperCase() === "FAIL"
-                            ? "error"
-                            : item.result.toUpperCase() === "REVIEW" || item.result.toUpperCase() === "WARNING"
-                              ? "warning"
-                              : "pending"
-                      }
-                    />                  </div>
-                  {item.ruleDescription && (
-                    <p className="text-xs text-on-surface-variant">{item.ruleDescription}</p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div>
-                  <span className="text-on-surface-variant font-medium">Requirement:</span>
-                  <p className="text-on-surface mt-0.5">{item.requirement}</p>
-                </div>
-                <div>
-                  <span className="text-on-surface-variant font-medium">Extracted Value:</span>
-                  <p className="text-on-surface font-mono mt-0.5">{item.extracted_value || '<Not detected>'}</p>
-                </div>
-                <div>
-                  <span className="text-on-surface-variant font-medium">Evidence:</span>
-                  <p className="text-on-surface mt-0.5">{item.evidence || 'OCR text analysis'}</p>
-                </div>
-              </div>
-              {item.explanation && (
-                <div className="mt-3 p-3 bg-surface-container-lowest rounded text-xs">
-                  <span className="font-semibold text-on-surface">Explanation: </span>
-                  <span className="text-on-surface-variant">{item.explanation}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </AppShell>
-  );
+  return <AppShell pageTitle="Inspection Report"><main className="report-page max-w-6xl mx-auto w-full pb-12">
+    <header className="report-header flex flex-col lg:flex-row lg:items-end justify-between gap-5 border-b border-outline-variant pb-6 mb-6"><div><p className="text-xs font-bold tracking-[0.18em] text-primary uppercase mb-2">PackIntel</p><h1 className="text-3xl md:text-4xl font-bold text-on-surface">Inspection Report</h1><p className="text-sm text-on-surface-variant mt-2">Packaged Commodity Compliance Analysis</p><div className="flex flex-wrap gap-x-5 gap-y-1 mt-4 text-xs text-on-surface-variant"><span>Report ID: <strong className="text-on-surface">{inspection.inspection_number || inspection.id}</strong></span><span>Scanned: <strong className="text-on-surface">{formatDate(inspection.inspected_at || inspection.created_at)}</strong></span><span>AI-assisted inspection</span></div></div><div className="report-actions flex flex-wrap gap-2"><Button variant="secondary" icon="download" onClick={handlePdf}>Download PDF Report</Button><Button variant="outline" icon="print" onClick={() => window.print()}>Print Report</Button><Link href="/scan/new"><Button variant="primary" icon="add">New Scan</Button></Link></div></header>
+    {reportMessage && <p role="status" className="report-actions text-xs text-primary mb-4">{reportMessage}</p>}
+    <section className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.65fr] gap-5 mb-6"><div className={`border rounded-xl p-6 ${status.tone}`}><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5"><div><p className="text-xs font-bold tracking-[0.15em] uppercase opacity-75">Compliance score</p><div className="flex items-baseline gap-2 mt-2"><span className="text-6xl font-bold tracking-tight">{score}</span><span className="text-xl opacity-70">/ 100</span></div></div><div className="sm:text-right"><p className="text-2xl font-bold">{status.label}</p><p className="text-sm mt-1 max-w-sm">{status.description}</p></div></div></div><div className="border border-outline-variant rounded-xl bg-surface p-6"><p className="text-xs font-bold tracking-[0.15em] text-on-surface-variant uppercase">Inspection confidence</p><p className="text-2xl font-bold text-on-surface mt-3">{confidence.label}</p><p className="text-sm text-on-surface-variant mt-2">{confidence.reason}</p></div></section>
+    <section aria-label="Inspection summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8"><SummaryItem value={counts.verified} label="Verified" tone="text-green-700" /><SummaryItem value={counts.review} label="Needs review" tone="text-amber-700" /><SummaryItem value={counts.failed} label="Failed" tone="text-red-700" /><SummaryItem value={counts.notDetected} label="Not detected" tone="text-on-surface-variant" /></section>
+    <section className="mb-8"><SectionHeading title="What did PackIntel check?" subtitle="Applicable checks from the Legal Metrology inspection engine." /><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 border-y border-outline-variant py-4">{enrichedResults.map((result) => <div key={result.id} className="flex gap-3 py-2 text-sm"><span className="text-primary">•</span><div><p className="font-semibold text-on-surface">{result.rule_name}</p><p className="text-on-surface-variant">{result.ruleDescription || result.requirement}</p></div></div>)}</div></section>
+    <section className="mb-8"><SectionHeading title="Compliance checklist" subtitle="Evidence is based on the information readable in the uploaded image." /><div className="border border-outline-variant rounded-xl overflow-hidden bg-surface overflow-x-auto"><table className="w-full min-w-[640px] text-left"><thead className="bg-surface-container-lowest text-xs uppercase tracking-wider text-on-surface-variant"><tr><th className="p-4">Requirement</th><th className="p-4 w-36">Result</th><th className="p-4">Explanation</th></tr></thead><tbody className="divide-y divide-outline-variant/60 text-sm">{enrichedResults.map((result) => <tr key={result.id}><td className="p-4 font-semibold text-on-surface">{result.rule_name}</td><td className="p-4"><ResultPill result={result.result} /></td><td className="p-4 text-on-surface-variant">{result.explanation || result.evidence || (result.extracted_value ? `Detected: ${result.extracted_value}` : 'This information was not detected.')}</td></tr>)}</tbody></table></div></section>
+    <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8"><div className="border border-red-200 bg-red-50/60 rounded-xl p-5"><SectionHeading title="Issues found" subtitle="Items that need attention before a final determination." />{issues.length ? <div className="space-y-4">{issues.map((issue) => <div key={issue.id} className="border-l-2 border-red-400 pl-3"><div className="flex items-center gap-2"><ResultPill result={issue.result} /><span className="font-semibold text-sm text-on-surface">{issue.rule_name}</span></div><p className="text-sm text-on-surface-variant mt-1">{issue.explanation || 'PackIntel could not verify this requirement from the available image.'}</p><p className="text-xs text-on-surface-variant mt-1"><strong>Recommendation:</strong> Upload a clearer image of the relevant package panel.</p></div>)}</div> : <p className="text-sm text-green-800">No compliance issues detected in the available image.</p>}</div><div className="border border-outline-variant rounded-xl bg-surface p-5"><SectionHeading title="Product information" subtitle="Only fields detected in this inspection are shown." />{populatedFields.length ? <dl className="divide-y divide-outline-variant/60">{populatedFields.map((field) => <div key={field.name} className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-4 py-2 text-sm"><dt className="text-on-surface-variant">{field.name}</dt><dd className="font-medium text-on-surface break-words">{field.value}</dd></div>)}</dl> : <p className="text-sm text-on-surface-variant">No product information was reliably detected.</p>}</div></section>
+    <section className="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-5 mb-8"><div className="border border-outline-variant rounded-xl bg-surface p-5"><SectionHeading title="Source image" subtitle="The image used for this inspection." />{imageUrl ? <img src={imageUrl} alt="Uploaded product label" className="w-full max-h-72 object-contain rounded border border-outline-variant bg-surface-container-low" /> : <div className="h-48 grid place-items-center bg-surface-container-low text-sm text-on-surface-variant">Image preview unavailable</div>}</div><div className="border border-outline-variant rounded-xl bg-surface p-5"><SectionHeading title="Image and OCR quality" subtitle="Quality is separate from the compliance score." /><div className="grid grid-cols-2 gap-4 text-sm"><QualityItem label="Image quality" value={image ? 'Available' : 'Unavailable'} /><QualityItem label="OCR status" value={rawOcr ? 'Readable text found' : 'No readable text'} /><QualityItem label="OCR confidence" value={label?.extraction_confidence ? `${Math.round(label.extraction_confidence)}%` : 'Not available'} /><QualityItem label="Assessment" value={confidence.label} /></div><details className="mt-5 border-t border-outline-variant pt-4"><summary className="cursor-pointer font-semibold text-sm text-on-surface">View raw OCR text</summary><pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-surface-container-lowest p-3 text-xs text-on-surface-variant">{rawOcr || 'No readable OCR text was detected.'}</pre></details></div></section>
+    <section className="border-t border-outline-variant pt-5"><SectionHeading title="Recommendations" />{issues.length ? <ul className="list-disc pl-5 text-sm text-on-surface-variant space-y-1"><li>Upload a clearer image of the relevant package panel.</li><li>Include the complete label so every declaration can be checked.</li></ul> : <p className="text-sm text-on-surface-variant">No further action is recommended based on the available image.</p>}</section><footer className="report-footer border-t border-outline-variant mt-8 pt-5 text-xs text-on-surface-variant">PackIntel · AI-assisted packaged commodity inspection · Report generated {formatDate(new Date().toISOString())}<br /><span>This report is an AI-assisted preliminary inspection and should not be treated as a final legal determination.</span></footer>
+  </main></AppShell>;
 }
+
+function getStatus(inspection: Inspection | null, counts: { failed: number; review: number }, total: number) { if (!total || (inspection?.risk_score === 0 && inspection.overall_result === 'review')) return { label: 'Insufficient information', description: 'No readable package-label information was available for a reliable inspection.', tone: 'border-amber-300 bg-amber-50 text-amber-950' }; if (counts.failed) return { label: 'Non-compliant', description: 'One or more mandatory requirements could not be verified.', tone: 'border-red-300 bg-red-50 text-red-950' }; if (counts.review) return { label: 'Needs review', description: 'Some package information requires further review.', tone: 'border-amber-300 bg-amber-50 text-amber-950' }; return { label: 'Compliant', description: 'The available package information was detected and verified.', tone: 'border-green-300 bg-green-50 text-green-950' }; }
+function getConfidence(label: ExtractedLabel | null, image: InspectionImage | null, score: number) { if (!image || !label?.raw_ocr_text) return { label: 'Low', reason: 'Image quality is insufficient to reliably verify package information.' }; if ((label.extraction_confidence || 0) < 65 || score === 0) return { label: 'Medium', reason: 'Some information was readable, but parts of the label need review.' }; return { label: 'High', reason: 'The image contained enough readable information for this preliminary inspection.' }; }
+function ResultPill({ result }: { result: string }) { const config: Record<string, { label: string; className: string }> = { pass: { label: 'Verified', className: 'text-green-700 bg-green-100' }, warning: { label: 'Needs review', className: 'text-amber-800 bg-amber-100' }, fail: { label: 'Failed', className: 'text-red-700 bg-red-100' }, not_applicable: { label: 'Not detected', className: 'text-on-surface-variant bg-surface-container-highest' } }; const item = config[result] || config.not_applicable; return <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${item.className}`}>{item.label}</span>; }
+function SummaryItem({ value, label, tone }: { value: number; label: string; tone: string }) { return <div className="border border-outline-variant rounded-lg bg-surface p-4"><p className={`text-2xl font-bold ${tone}`}>{value}</p><p className="text-xs text-on-surface-variant mt-1">{label}</p></div>; }
+function QualityItem({ label, value }: { label: string; value: string }) { return <div><p className="text-xs text-on-surface-variant">{label}</p><p className="font-semibold text-on-surface mt-1">{value}</p></div>; }
+function SectionHeading({ title, subtitle }: { title: string; subtitle?: string }) { return <div className="mb-4"><h2 className="text-lg font-bold text-on-surface">{title}</h2>{subtitle && <p className="text-sm text-on-surface-variant mt-1">{subtitle}</p>}</div>; }
+function LoadingState() { return <div className="max-w-5xl mx-auto py-16 text-center"><span className="material-symbols-outlined text-4xl text-primary animate-spin">autorenew</span><p className="text-sm text-on-surface-variant mt-3">Preparing inspection report...</p></div>; }
+function ErrorState({ message, onNewScan }: { message: string; onNewScan: () => void }) { return <div className="max-w-md mx-auto py-16 text-center"><span className="material-symbols-outlined text-5xl text-error">error</span><h2 className="text-xl font-bold text-on-surface mt-3">Report unavailable</h2><p className="text-sm text-on-surface-variant mt-2 mb-6">{message}</p><Button variant="primary" onClick={onNewScan}>Start new scan</Button></div>; }
+function formatDate(value: string) { return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }

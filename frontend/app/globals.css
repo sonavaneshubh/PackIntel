@@ -73,3 +73,40 @@
 .animate-spin-slow {
   animation: spin 3s linear infinite;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  .report-actions,
+  nav,
+  aside,
+  header:not(.report-header) {
+    display: none !important;
+  }
+
+  .report-page {
+    max-width: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .report-page section,
+  .report-page table,
+  .report-page img {
+    break-inside: avoid;
+  }
+
+  .report-page h1 {
+    font-size: 28pt;
+  }
+
+  .report-footer {
+    margin-top: 12mm;
+  }
+}

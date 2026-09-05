@@ -84,21 +84,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "flex flex-col w-[260px] h-screen fixed left-0 top-0 py-6 z-40 bg-surface-container-low border-r border-outline-variant transition-transform duration-300",
+          "flex flex-col w-[220px] h-screen fixed left-0 top-0 py-5 z-40 bg-[#0b0f12] transition-transform duration-300",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         {/* Logo / Header */}
-        <div className="px-6 mb-8 flex items-center justify-between">
+        <div className="px-5 mb-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold text-base shadow-xs group-hover:bg-primary-container transition-colors">
-              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+            <div className="w-6 h-6 rounded-md bg-[#0d9488] text-white flex items-center justify-center font-bold text-base transition-colors">
+              <span className="material-symbols-outlined text-[14px]">verified_user</span>
             </div>
             <div>
-              <h1 className="text-headline-md font-headline-md font-black text-primary leading-none tracking-tight">
+              <h1 className="text-sm font-extrabold text-white leading-none tracking-tight">
                 PackIntel
               </h1>
-              <p className="text-label-bold font-label-bold text-on-surface-variant text-[10px] mt-0.5 tracking-wider uppercase">
+              <p className="text-[9px] font-semibold text-slate-400 mt-0.5 tracking-wider uppercase">
                 Compliance Intelligence
               </p>
             </div>
@@ -114,21 +114,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto px-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={onClose}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-75 text-label-bold font-label-bold active:scale-95",
+                "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-75 text-[12px] font-semibold active:scale-95",
                 item.isActive
-                  ? "text-primary bg-surface-container-highest border-l-4 border-primary rounded-l-none font-bold"
-                  : "text-on-surface-variant hover:bg-surface-container-high hover:text-primary",
+                  ? "text-white bg-[#111c20] border-r-[3px] border-[#2dd4bf] rounded-r-md font-bold"
+                  : "text-slate-400 hover:bg-[#111c20] hover:text-white",
               )}
             >
               <span
-                className="material-symbols-outlined text-[20px]"
+                className="material-symbols-outlined text-[16px]"
                 style={{
                   fontVariationSettings: item.isActive
                     ? "'FILL' 1"
@@ -143,13 +143,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer Support & Sign Out */}
-        <div className="mt-auto px-2 pt-4 border-t border-outline-variant space-y-1">
+        <div className="mt-auto px-2 pt-4 space-y-0.5">
           <Link
             href="/support"
             onClick={onClose}
-            className="flex items-center gap-2 text-on-surface-variant px-4 py-3 rounded-lg hover:bg-surface-container-high hover:text-primary transition-all duration-75 text-label-bold font-label-bold"
+            className="flex items-center gap-2 text-slate-400 px-3 py-2 rounded-md hover:bg-[#111c20] hover:text-white transition-all duration-75 text-[12px] font-semibold"
           >
-            <span className="material-symbols-outlined text-[20px]">
+            <span className="material-symbols-outlined text-[16px]">
               contact_support
             </span>
             <span>Support</span>
@@ -159,9 +159,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               if (onClose) onClose();
               await signOut();
             }}
-            className="w-full flex items-center gap-2 text-on-surface-variant px-4 py-3 rounded-lg hover:bg-surface-container-high hover:text-error transition-all duration-75 text-label-bold font-label-bold text-left cursor-pointer"
+            className="w-full flex items-center gap-2 text-slate-400 px-3 py-2 rounded-md hover:bg-[#111c20] hover:text-red-300 transition-all duration-75 text-[12px] font-semibold text-left cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">
+            <span className="material-symbols-outlined text-[16px]">
               logout
             </span>
             <span>Sign Out</span>

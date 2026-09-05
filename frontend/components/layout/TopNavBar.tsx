@@ -27,7 +27,7 @@ export function TopNavBar({ onMenuToggle, pageTitle = 'Dashboard' }: TopNavBarPr
   };
 
   return (
-    <header className="sticky top-0 z-30 flex justify-between items-center w-full px-4 md:px-6 h-16 bg-surface border-b border-outline-variant shadow-xs transition-colors">
+    <header className="sticky top-0 z-30 flex justify-between items-center w-full px-3 md:px-4 h-[52px] bg-surface-container-lowest border-b border-outline-variant transition-colors">
       <div className="flex items-center gap-3">
         {/* Mobile menu trigger */}
         <button
@@ -39,30 +39,32 @@ export function TopNavBar({ onMenuToggle, pageTitle = 'Dashboard' }: TopNavBarPr
         </button>
 
         {/* Dynamic page title */}
-        <h2 className="text-headline-md font-headline-md font-bold text-on-surface hidden sm:block">
-          {pageTitle}
-        </h2>
+        <div className="hidden items-center gap-1 text-body-sm font-body-sm sm:flex">
+          <span className="text-on-surface-variant">{pageTitle}</span>
+          <span className="text-outline">&gt;</span>
+          <span className="font-label-bold text-on-surface">System Operations</span>
+        </div>
 
         {/* Operational badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-surface-container-low rounded-full border border-outline-variant ml-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-label-bold font-label-bold text-on-surface-variant text-[11px]">
+        <div className="hidden lg:flex items-center gap-1 px-2 py-1 bg-[#F0FDF4] border border-[#BBF7D0] rounded-full ml-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
+          <span className="text-label-bold font-label-bold text-[#15803D]">
             System Operational
           </span>
         </div>
       </div>
 
       {/* Center / Search bar */}
-      <div className="flex-1 max-w-md mx-4 hidden md:block">
-        <div className="flex items-center bg-surface-container-low border border-outline-variant rounded-full px-4 py-1.5 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
-          <span className="material-symbols-outlined text-outline mr-2 text-[18px]">
+      <div className="flex-1 max-w-[220px] mx-3 hidden md:block">
+        <div className="flex items-center bg-surface-container-low rounded-md px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-[#0D9488] transition-all">
+          <span className="material-symbols-outlined text-on-surface-variant mr-1.5 text-[14px]">
             search
           </span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products, manufacturers, rules, violations..."
+            placeholder="Search products, rules..."
             className="bg-transparent border-none outline-none w-full text-body-sm font-body-sm text-on-surface placeholder:text-outline"
           />
           {searchQuery && (
@@ -79,8 +81,8 @@ export function TopNavBar({ onMenuToggle, pageTitle = 'Dashboard' }: TopNavBarPr
       {/* Right controls */}
       <div className="flex items-center gap-2 md:gap-3">
         {/* AI Services Online badge */}
-        <div className="hidden sm:flex items-center gap-1.5 text-label-bold font-label-bold text-primary px-3 py-1.5 rounded border border-primary-container bg-primary/5 text-xs">
-          <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+        <div className="hidden sm:flex items-center gap-1 text-body-sm font-label-bold text-[#0F766E] px-2 py-1 rounded-md border border-[#99F6E4] bg-[#F0FDFA]">
+          <span className="material-symbols-outlined text-[13px]">memory</span>
           <span>Rule Engine v2.4.1</span>
         </div>
 
@@ -109,7 +111,7 @@ export function TopNavBar({ onMenuToggle, pageTitle = 'Dashboard' }: TopNavBarPr
                 <span className="text-label-bold font-label-bold text-on-surface">
                   Inspection Alerts
                 </span>
-                <span className="text-[11px] text-primary">All caught up</span>
+                <span className="text-body-sm font-body-sm text-primary">All caught up</span>
               </div>
               <div className="space-y-2 text-body-sm font-body-sm">
                 <div className="p-2 rounded bg-red-50/60 border border-red-200/80">

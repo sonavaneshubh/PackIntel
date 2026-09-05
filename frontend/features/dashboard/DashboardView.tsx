@@ -10,6 +10,9 @@ import { useDashboardStats, useMyInspections } from '@/lib/hooks/useSupabaseData
 import { Inspection } from '@/types/database';
 import { EvidenceDetails } from '@/types';
 import { EvidenceModal } from './EvidenceModal';
+import { FigmaPrimaryDashboard } from './FigmaPrimaryDashboard';
+import { InspectionActivityCard } from './InspectionActivityCard';
+import type { FilterStatus } from './RecentInspectionsTable';
 
 export function DashboardView() {
   const router = useRouter();
@@ -27,7 +30,7 @@ export function DashboardView() {
     refetch: refetchInspections,
   } = useMyInspections();
 
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceDetails | null>(null);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
 
@@ -115,7 +118,7 @@ export function DashboardView() {
       />
 
       {/* Top Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 pb-4 border-b border-outline-variant/60">
+      <div className="hidden flex-col md:flex-row md:items-center justify-between mb-6 gap-4 pb-4 border-b border-outline-variant/60">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-display-lg-mobile md:text-display-lg font-display-lg text-on-surface">
@@ -194,8 +197,24 @@ export function DashboardView() {
       {/* Main Dashboard Content (rendered when loaded & error-free) */}
       {!isLoading && !hasError && (
         <>
+          <FigmaPrimaryDashboard
+            stats={stats}
+            inspections={inspections}
+            highPriorityInspections={highPriorityInspections}
+            filteredInspections={filteredInspections}
+            filterStatus={filterStatus}
+            passPercentage={passPercentage}
+            reviewPercentage={reviewPercentage}
+            failPercentage={failPercentage}
+            onFilterChange={setFilterStatus}
+            onViewHistory={() => router.push('/history')}
+            onOpenEvidence={handleOpenScanEvidence}
+          />
+
+          <InspectionActivityCard stats={stats} />
+
           {/* Top KPI Cards (5 cards) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-8">
+          <div className="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-8">
             {/* Card 1: Total Inspections */}
             <div className="bg-surface border border-outline-variant rounded-xl p-4 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
               <div>
@@ -328,7 +347,7 @@ export function DashboardView() {
           </div>
 
           {/* Hero Section: High-Priority Inspections */}
-          <section id="high-priority" className="mb-8 scroll-mt-20">
+          <section id="legacy-high-priority" className="hidden mb-8 scroll-mt-20">
             <div className="bg-surface border border-outline-variant rounded-xl shadow-xs overflow-hidden">
               {/* Section Header */}
               <div className="p-5 border-b border-outline-variant bg-surface-container-low flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -454,7 +473,7 @@ export function DashboardView() {
           </section>
 
           {/* Middle Section: Recent Inspections + Compliance Overview */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+          <div className="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
             {/* Left Column (8 cols): Recent Inspections Table */}
             <div className="lg:col-span-8 bg-surface border border-outline-variant rounded-xl shadow-xs overflow-hidden flex flex-col">
               <div className="p-4 md:p-5 border-b border-outline-variant flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-surface">
@@ -488,7 +507,7 @@ export function DashboardView() {
 
               {/* Filter tabs */}
               <div className="px-4 py-2 bg-surface-container-lowest border-b border-outline-variant/60 flex gap-2 overflow-x-auto">
-                {['ALL', 'FAIL', 'REVIEW', 'PASS'].map((status) => (
+                {(['ALL', 'FAIL', 'REVIEW', 'PASS'] as FilterStatus[]).map((status) => (
                   <button
                     key={status}
                     onClick={() => setFilterStatus(status)}
