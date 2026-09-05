@@ -47,6 +47,10 @@ origins = [
     # Current frontend port
     "http://localhost:3001",
     "http://127.0.0.1:3001",
+
+    # Current local development frontend
+    "http://localhost:3004",
+    "http://127.0.0.1:3004",
 ]
 
 
