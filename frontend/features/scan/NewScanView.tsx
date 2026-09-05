@@ -69,8 +69,8 @@ export function NewScanView() {
     setIsProcessing(true);
     const finalProductForm = {
       ...productForm,
-      product_name: productForm.product_name.trim() || 'Scanned Packaged Commodity',
-      manufacturer_name: productForm.manufacturer_name.trim() || 'Pending AI Extraction',
+      product_name: productForm.product_name.trim(),
+      manufacturer_name: productForm.manufacturer_name.trim(),
     };
 
     const result = await runFullPipeline(selectedFile, finalProductForm);

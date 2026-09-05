@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from app.schemas.compliance import ComplianceResult
+from app.schemas.product import ProductField
+
 
 class ScanRequest(BaseModel):
     image_url: Optional[str] = None
@@ -21,9 +24,20 @@ class ScanResponse(BaseModel):
     inspection_id: str
     message: str = "Scan processing started successfully."
     ocr_raw_text: Optional[str] = None
+    ocr_engine: Optional[str] = None
+    ocr_confidence: float = 0.0
+    ocr_regions: List[Dict[str, Any]] = []
     extracted_declarations: Optional[Dict[str, Any]] = None
+    product_information: Dict[str, ProductField] = {}
+    extraction_source: str = "ocr"
+    vision_used: bool = False
+    vision_error: Optional[str] = None
+    extraction_confidence: Optional[float] = None
+    compliance_results: List[ComplianceResult] = []
     score: int = 0
     compliance_score: int = 0
+    risk_score: int = 0
+    overall_result: str = "review"
     image_quality: str = "unknown"
     quality_reason: Optional[str] = None
     report: Optional[str] = None
@@ -47,5 +61,6 @@ class InspectionResponse(BaseModel):
     status: str
     overall_result: Optional[str] = None
     risk_score: Optional[int] = None
+    compliance_score: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

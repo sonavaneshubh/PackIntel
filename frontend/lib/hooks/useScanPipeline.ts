@@ -12,9 +12,8 @@ import {
   getInspectionById,
 } from '@/lib/supabase/inspectionService';
 import { Inspection, ExtractedLabelInsert, ComplianceResultInsert, InspectionImage } from '@/types/database';
-import { complianceRules } from '@/lib/constants/complianceRules';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export interface ScanPipelineState {
   step: 'idle' | 'creating' | 'uploading' | 'ocr' | 'extracting' | 'compliance' | 'completed' | 'error';
@@ -23,6 +22,10 @@ export interface ScanPipelineState {
   ocrText: string | null;
   extractedLabels: ExtractedLabelInsert | null;
   complianceResults: ComplianceResultInsert[] | null;
+  inexact: boolean;
+  extractionSource: string | null;
+  visionUsed: boolean;
+  visionError: string | null;
   error: string | null;
   progress: number;
 }
@@ -36,6 +39,10 @@ export function useScanPipeline() {
     ocrText: null,
     extractedLabels: null,
     complianceResults: null,
+    inexact: false,
+    extractionSource: null,
+    visionUsed: false,
+    visionError: null,
     error: null,
     progress: 0,
   });
@@ -116,32 +123,62 @@ export function useScanPipeline() {
       const ocrData = await ocrResponse.json();
       const ocrText = ocrData.ocr_raw_text || '';
       const extractedDeclarations = ocrData.extracted_declarations || {};
+      const productInformation =
+        typeof ocrData.product_information === 'string'
+          ? JSON.parse(ocrData.product_information || '{}')
+          : (ocrData.product_information || {});
+      const ocrConfidence = Number(ocrData.ocr_confidence) || 0;
+      const extractionConfidence = Number(ocrData.extraction_confidence);
+      const ocrRegions = Array.isArray(ocrData.ocr_regions) ? ocrData.ocr_regions : [];
 
-      updateState({ ocrText, step: 'extracting', progress: 50 });
+      updateState({
+        ocrText,
+        step: 'extracting',
+        progress: 50,
+        inexact: Boolean(ocrData.vision_used) || Object.values(productInformation).some(
+          (entry: any) => entry?.status === 'uncertain',
+        ),
+        extractionSource: ocrData.extraction_source || 'ocr',
+        visionUsed: Boolean(ocrData.vision_used),
+        visionError: ocrData.vision_error || null,
+      });
 
-      // Step 4: Save OCR text to inspection_images
+      // Step 4: Save OCR text, real confidence and word regions to inspection_images
       if (image.id) {
         await supabase
           .from('inspection_images')
-          .update({ ocr_text: ocrText })
+          .update({
+            ocr_text: ocrText,
+            ocr_confidence: ocrConfidence,
+            ocr_engine: ocrData.ocr_engine || 'tesseract',
+            ocr_regions: ocrRegions,
+          })
           .eq('id', image.id);
       }
 
-      // Step 5: Save extracted labels
+      // Step 5: Save extracted labels (from OCR text only, never request metadata)
       const labelData: ExtractedLabelInsert = {
         inspection_id: inspection.id,
         manufacturer_name: extractedDeclarations.manufacturer_name || null,
         packer_name: extractedDeclarations.packer_name || null,
         importer_name: extractedDeclarations.importer_name || null,
-        commodity_name: extractedDeclarations.common_generic_name || extractedDeclarations.commodity_name || null,
+        commodity_name: extractedDeclarations.commodity_name || extractedDeclarations.common_generic_name || null,
         net_quantity: extractedDeclarations.net_quantity || null,
         mrp: extractedDeclarations.mrp || null,
-        month_year_packed: extractedDeclarations.mfg_date || extractedDeclarations.month_year_packed || null,
-        customer_care_details: extractedDeclarations.consumer_care || extractedDeclarations.customer_care_details || null,
+        month_year_packed: extractedDeclarations.month_year_packed || extractedDeclarations.mfg_date || null,
+        customer_care_details: extractedDeclarations.customer_care_details || extractedDeclarations.consumer_care || null,
         country_of_origin: extractedDeclarations.country_of_origin || null,
-        other_declarations: extractedDeclarations.other_declarations || null,
+        other_declarations: JSON.stringify({
+          notes: extractedDeclarations.other_declarations || '',
+          product_information: productInformation,
+          extraction_source: ocrData.extraction_source || 'ocr',
+          vision_used: Boolean(ocrData.vision_used),
+          vision_error: ocrData.vision_error || null,
+        }),
+        product_information: productInformation,
         raw_ocr_text: ocrText,
-        extraction_confidence: ocrData.confidence_score || 95,
+        extraction_confidence: Number.isFinite(extractionConfidence) ? extractionConfidence : null,
+        ocr_confidence: ocrConfidence,
       };
 
       const { data: savedLabel, error: labelError } = await saveExtractedLabel(labelData);
@@ -149,117 +186,52 @@ export function useScanPipeline() {
 
       updateState({ extractedLabels: savedLabel, step: 'compliance', progress: 70 });
 
-      // Step 6: Run compliance checks using frontend rules
-      const complianceResults: ComplianceResultInsert[] = complianceRules.map(rule => {
-        let result: 'pass' | 'fail' | 'warning' | 'not_applicable' = 'pass';
-        let explanation = '';
-        let extractedValue = '';
-
-        switch (rule.id) {
-          case 'RULE-PC-01': // Manufacturer/Packer/Importer
-            extractedValue = labelData.manufacturer_name || labelData.packer_name || labelData.importer_name || '';
-            result = extractedValue ? 'pass' : 'fail';
-            explanation = extractedValue
-              ? `Complete name and address identified: ${extractedValue}`
-              : 'Missing manufacturer/packer/importer name and address';
-            break;
-          case 'RULE-PC-02': // Common/Generic Name
-            extractedValue = labelData.commodity_name || '';
-            result = extractedValue ? 'pass' : 'fail';
-            explanation = extractedValue
-              ? `Generic name declared: ${extractedValue}`
-              : 'Missing common/generic product name';
-            break;
-          case 'RULE-PC-03': // Net Quantity
-            extractedValue = labelData.net_quantity || '';
-            result = extractedValue ? 'pass' : 'fail';
-            explanation = extractedValue
-              ? `Net quantity declared: ${extractedValue}`
-              : 'Missing net quantity in standard units';
-            break;
-          case 'RULE-PC-04': // Month/Year of Manufacture
-            extractedValue = labelData.month_year_packed || '';
-            result = extractedValue ? 'pass' : 'fail';
-            explanation = extractedValue
-              ? `Manufacture/packing date: ${extractedValue}`
-              : 'Missing month and year of manufacture/packing';
-            break;
-          case 'RULE-PC-05': // MRP
-            extractedValue = labelData.mrp || '';
-            result = extractedValue ? 'pass' : 'fail';
-            explanation = extractedValue
-              ? `MRP declared: ${extractedValue}`
-              : 'Missing Maximum Retail Price (MRP)';
-            break;
-          case 'RULE-PC-06': // Unit Sale Price
-            result = 'not_applicable';
-            explanation = 'Unit sale price verification requires price per unit calculation';
-            break;
-          case 'RULE-PC-07': // Consumer Care
-            extractedValue = labelData.customer_care_details || '';
-            result = extractedValue ? 'pass' : 'warning';
-            explanation = extractedValue
-              ? `Consumer care details: ${extractedValue}`
-              : 'Consumer care contact details not found (warning)';
-            break;
-          default:
-            result = 'not_applicable';
-            explanation = 'Rule not implemented';
-        }
-
-        return {
-          inspection_id: inspection.id,
-          rule_code: rule.id,
-          rule_name: rule.name,
-          requirement: rule.clause,
-          extracted_value: extractedValue,
-          result,
-          explanation,
-          evidence: ocrText ? `OCR text contains: ${extractedValue}` : 'No OCR text available',
-        };
-      });
+      // Step 6: Persist compliance results computed by the backend
+      const complianceResults: ComplianceResultInsert[] = (ocrData.compliance_results || []).map((rule: any) => ({
+        inspection_id: inspection.id,
+        rule_code: rule.rule_code,
+        rule_name: rule.rule_name,
+        requirement: rule.requirement || null,
+        extracted_value: rule.extracted_value || null,
+        result: rule.result,
+        explanation: rule.explanation,
+        evidence: rule.evidence || null,
+      }));
 
       const { error: complianceError } = await saveComplianceResults(complianceResults);
       if (complianceError) throw new Error(complianceError);
 
       updateState({ complianceResults, step: 'completed', progress: 90 });
 
-      // Step 7: Calculate overall result and update inspection
-      const failedCount = complianceResults.filter(r => r.result === 'fail').length;
-      const warningCount = complianceResults.filter(r => r.result === 'warning').length;
-
-      let overallResult: 'pass' | 'fail' | 'review' | 'pending' = 'pending';
-      let riskScore = 0;
-
-      if (
-        ocrData.score === 0 &&
-        (ocrData.status === 'insufficient_information' ||
-          ocrData.image_quality === 'poor' ||
-          ocrData.image_quality === 'unusable')
-      ) {
-        overallResult = 'review';
-        riskScore = 0;
-      } else if (failedCount > 0) {
-        overallResult = 'fail';
-        riskScore = Math.min(100, 60 + failedCount * 15);
-      } else if (warningCount > 0) {
-        overallResult = 'review';
-        riskScore = Math.min(60, 20 + warningCount * 10);
-      } else {
-        overallResult = 'pass';
-        riskScore = 5;
-      }
+      // Step 7: Persist the overall result, risk and compliance score from the backend
+      const overallResult: 'pass' | 'fail' | 'review' | 'pending' =
+        ocrData.overall_result === 'fail'
+          ? 'fail'
+          : ocrData.overall_result === 'pass'
+            ? 'pass'
+            : ocrData.overall_result === 'review'
+              ? 'review'
+              : 'pending';
+      const riskScore = Number(ocrData.risk_score) || 0;
+      const complianceScore = Number(ocrData.compliance_score) || 0;
 
       await updateInspection(inspection.id, {
         status: 'completed',
         overall_result: overallResult,
         risk_score: riskScore,
+        compliance_score: complianceScore,
         notes: ocrData.report || `Processed via scan pipeline. ${complianceResults.length} rules checked.`,
         inspected_at: new Date().toISOString(),
       });
 
       updateState({
-        inspection: { ...inspection, status: 'completed', overall_result: overallResult, risk_score: riskScore },
+        inspection: {
+          ...inspection,
+          status: 'completed',
+          overall_result: overallResult,
+          risk_score: riskScore,
+          compliance_score: complianceScore,
+        },
         progress: 100,
       });
 
@@ -293,6 +265,10 @@ export function useScanPipeline() {
       ocrText: null,
       extractedLabels: null,
       complianceResults: null,
+      inexact: false,
+      extractionSource: null,
+      visionUsed: false,
+      visionError: null,
       error: null,
       progress: 0,
     });

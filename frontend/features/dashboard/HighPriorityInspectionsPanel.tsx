@@ -46,7 +46,7 @@ export function HighPriorityInspectionsPanel({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="truncate text-body-base font-label-bold text-on-surface">{inspection.product_name || 'Unknown Product'}</h3>
-                  <RiskBadge score={inspection.risk_score || 85} showScore={false} />
+                  <RiskBadge score={inspection.risk_score ?? 85} showScore={false} />
                 </div>
                 <p className="mt-1 text-body-sm font-body-sm text-on-surface-variant">Manufacturer: {inspection.manufacturer_name || 'N/A'}</p>
               </div>

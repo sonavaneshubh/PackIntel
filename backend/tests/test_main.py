@@ -5,6 +5,11 @@ from PIL import Image, ImageDraw
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services import ocr_service
+from app.api.routes import scan as scan_route
+from app.schemas.product import field as make_field
+from app.services.ai_service import AIService
+from app.services.compliance_service import ComplianceService
+from app.services.ocr_service import OCRService
 
 client = TestClient(app)
 
@@ -24,6 +29,65 @@ def test_health_check():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_cors_preflight_allows_local_frontend():
+    response = client.options(
+        "/api/scan",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "POST" in response.headers["access-control-allow-methods"]
+    assert "authorization" in response.headers["access-control-allow-headers"].lower()
+    assert "content-type" in response.headers["access-control-allow-headers"].lower()
+
+
+def test_low_confidence_scan_uses_structured_vision_fallback(monkeypatch):
+    image = Image.new("RGB", (600, 600), "white")
+
+    class FakeOCR:
+        def process_image(self, image_url):
+            return {
+                "raw_text": "Rice",
+                "confidence": 25.0,
+                "engine": "tesseract",
+                "regions": [],
+                "image_quality": "usable",
+                "quality_reason": None,
+            }
+
+    vision_values = {
+        field_key: make_field(value=value, status="detected", confidence=95.0, source="vision")
+        for field_key, value in {
+            "brand_or_commodity_name": "PackIntel Foods",
+            "generic_name": "Rice",
+            "net_quantity": "5 kg",
+            "manufacturer_name": "Acme Foods",
+            "mrp": "Rs. 499",
+        }.items()
+    }
+
+    monkeypatch.setattr(scan_route, "get_ocr_service", lambda: FakeOCR())
+    monkeypatch.setattr(scan_route.VisionService, "extract", lambda _: vision_values)
+    monkeypatch.setattr(scan_route, "get_current_user", lambda: {"sub": "test-user"})
+
+    response = client.post("/api/scan", json={"image_url": image_data_uri(image)})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["vision_used"] is True
+    assert data["extraction_source"] == "ocr+vision"
+    # OCR (title-guess "Rice", conf 55) vs vision ("PackIntel Foods") disagree,
+    # so the merged field is flagged uncertain for review, not silently chosen.
+    assert data["product_information"]["brand_or_commodity_name"]["value"] == "PackIntel Foods"
+    assert data["product_information"]["brand_or_commodity_name"]["status"] == "uncertain"
+    assert data["product_information"]["expiry_date"]["status"] == "not_visible"
 
 
 def test_scan_endpoint():
@@ -181,3 +245,100 @@ def test_normal_compliance_scan_keeps_success_response():
     assert response.status_code == 200
     assert response.json()["scan_completed"] is True
     assert response.json()["success"] is True
+
+
+def test_ai_extraction_sample_label():
+    text = (
+        "PREMIUM BASMATI RICE\n"
+        "Net Quantity 5 kg\n"
+        "MRP Rs. 499 (Incl. of all taxes)\n"
+        "MFD 01/2026\n"
+        "Manufacturer: Acme Foods Pvt Ltd\n"
+        "12 MG Road, Mumbai - 400001\n"
+        "Customer Care: 1800-123-456\n"
+        "Country of Origin: India\n"
+        "FSSAI Lic No. 12345678901234"
+    )
+    fields, conf = AIService.extract_with_confidence(text)
+
+    assert fields["commodity_name"] == "PREMIUM BASMATI RICE"
+    assert fields["net_quantity"] == "5 kg"
+    assert fields["mrp"] == "Rs. 499 (Incl. of all taxes)"
+    assert fields["month_year_packed"] == "01/2026"
+    assert "Acme Foods" in fields["manufacturer_name"]
+    assert fields["country_of_origin"] == "India"
+    assert "1800" in fields["consumer_care"]
+    assert conf["overall"] > 0
+
+
+def test_ai_extraction_ignores_unrelated_numbers():
+    fields, conf = AIService.extract_with_confidence(
+        "Some random package with numbers 149, 500 and 2026 but no label."
+    )
+    assert fields["mrp"] is None
+    assert fields["net_quantity"] is None
+    assert fields["month_year_packed"] is None
+    assert conf["overall"] == 0
+
+
+def test_ai_extraction_does_not_fallback_to_request_metadata():
+    text = "MRP Rs. 99\nNet Quantity 250 ml"
+    fields, _ = AIService.extract_with_confidence(text)
+    assert fields["commodity_name"] is None
+    assert fields["manufacturer_name"] is None
+
+
+def test_compliance_weighted_score_and_overall():
+    declarations = {
+        "manufacturer_name": "Acme Foods",
+        "net_quantity": "5 kg",
+        "mrp": "Rs. 499",
+        "month_year_packed": "01/2026",
+        "commodity_name": "Rice",
+        "customer_care": "1800-123-456",
+    }
+    response = ComplianceService.evaluate_compliance("INS-X", declarations, is_imported=False)
+    assert response.compliance_score == 100
+    assert response.risk_score == 0
+    assert response.overall_result == "pass"
+    assert any(r.result == "not_applicable" for r in response.results)
+
+    empty = ComplianceService.evaluate_compliance("INS-Y", {}, is_imported=False)
+    assert empty.compliance_score == 0
+    assert empty.risk_score == 100
+    assert empty.overall_result == "review"
+
+
+def test_compliance_imported_package_requires_origin():
+    response = ComplianceService.evaluate_compliance("INS-Z", {"net_quantity": "250 g"}, is_imported=True)
+    assert response.overall_result == "review"
+    pc07 = next(r for r in response.results if r.rule_code == "PC-07")
+    assert pc07.result == "warning"
+
+
+def test_ocr_confidence_and_regions_from_data_layer(monkeypatch):
+    data = {
+        "level": [5, 5],
+        "conf": [88.0, 75.0],
+        "text": ["MRP", "Rs."],
+        "left": [10, 120],
+        "top": [30, 30],
+        "width": [90, 40],
+        "height": [20, 20],
+    }
+    image = Image.new("RGB", (400, 200), (255, 255, 255))
+    monkeypatch.setattr(
+        OCRService,
+        "_run_tesseract_string",
+        lambda img, psm: "MRP Rs. 149" if psm == 3 else "",
+    )
+    monkeypatch.setattr(OCRService, "_run_tesseract_data", lambda img, psm: data)
+
+    result = OCRService.process_image(image_data_uri(image))
+
+    assert result["text"] == "MRP Rs. 149"
+    assert result["confidence"] == 81.5
+    assert result["regions"]
+    assert result["regions"][0]["text"] == "MRP"
+    assert 0 <= result["regions"][0]["left"] <= 1
+    assert 0 <= result["regions"][0]["top"] <= 1

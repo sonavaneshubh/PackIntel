@@ -53,7 +53,7 @@ export function DashboardView() {
           : 'All statutory declarations verified compliant with Legal Metrology Rules.',
       explanation: 'Official screening record stored in Supabase database.',
       complianceStatus: isFail ? 'FAIL' : isReview ? 'REVIEW' : 'PASS',
-      riskScore: scan.risk_score || (isFail ? 85 : isReview ? 50 : 10),
+      riskScore: scan.risk_score ?? (isFail ? 85 : (isReview ? 50 : 10)),
       riskLevel:
         (scan.risk_score || 0) >= 76
           ? 'CRITICAL'
@@ -416,7 +416,7 @@ export function DashboardView() {
                               {item.product_name}
                             </h3>
                             <RiskBadge
-                              score={item.risk_score || 85}
+                              score={item.risk_score ?? 85}
                               level={
                                 (item.risk_score || 0) >= 76
                                   ? 'CRITICAL'

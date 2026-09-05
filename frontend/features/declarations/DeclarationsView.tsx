@@ -51,13 +51,13 @@ export function DeclarationsView() {
           setExtractedLabel(data);
           // Build declarations from extracted label
           const declList: DetectedDeclaration[] = [
-            { id: 'RULE-PC-01', key: 'manufacturer_name', label: 'Manufacturer/Packer/Importer', value: data.manufacturer_name || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.manufacturer_name },
-            { id: 'RULE-PC-02', key: 'commodity_name', label: 'Common/Generic Product Name', value: data.commodity_name || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.commodity_name },
-            { id: 'RULE-PC-03', key: 'net_quantity', label: 'Net Quantity', value: data.net_quantity || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.net_quantity },
-            { id: 'RULE-PC-04', key: 'month_year_packed', label: 'Month & Year of Manufacture/Packing', value: data.month_year_packed || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.month_year_packed },
-            { id: 'RULE-PC-05', key: 'mrp', label: 'Maximum Retail Price (MRP)', value: data.mrp || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.mrp },
+            { id: 'RULE-PC-01', key: 'manufacturer_name', label: 'Manufacturer/Packer/Importer', value: data.manufacturer_name || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.manufacturer_name },
+            { id: 'RULE-PC-02', key: 'commodity_name', label: 'Common/Generic Product Name', value: data.commodity_name || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.commodity_name },
+            { id: 'RULE-PC-03', key: 'net_quantity', label: 'Net Quantity', value: data.net_quantity || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.net_quantity },
+            { id: 'RULE-PC-04', key: 'month_year_packed', label: 'Month & Year of Manufacture/Packing', value: data.month_year_packed || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.month_year_packed },
+            { id: 'RULE-PC-05', key: 'mrp', label: 'Maximum Retail Price (MRP)', value: data.mrp || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.mrp },
             { id: 'RULE-PC-06', key: 'unit_price', label: 'Unit Sale Price (USP)', value: '', confidence: 0, reviewRequired: true, warningNote: 'Unit price calculation requires net quantity and MRP' },
-            { id: 'RULE-PC-07', key: 'customer_care', label: 'Consumer Care Details', value: data.customer_care_details || '', confidence: data.extraction_confidence || 95, reviewRequired: !data.customer_care_details },
+            { id: 'RULE-PC-07', key: 'customer_care', label: 'Consumer Care Details', value: data.customer_care_details || '', confidence: data.ocr_confidence ?? data.extraction_confidence ?? 0, reviewRequired: !data.customer_care_details },
           ].filter(d => d.value || d.reviewRequired);
 
           setDeclarations(declList);

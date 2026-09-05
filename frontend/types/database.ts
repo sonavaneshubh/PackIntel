@@ -1,6 +1,21 @@
 // Supabase Database Types for PackIntel
 // Corresponds to: profiles, inspections, inspection_images, extracted_labels, compliance_results, inspection_reports
 
+import type {
+  ProductField,
+  ProductFieldStatus,
+  ProductFieldSource,
+  ProductInformation,
+} from './product';
+
+export type {
+  ProductFieldStatus,
+  ProductFieldSource,
+  ProductInformation,
+} from './product';
+
+export type ExtractedField = ProductField;
+
 export type InspectionStatus = 'draft' | 'processing' | 'completed' | 'failed';
 export type OverallResult = 'pass' | 'fail' | 'review' | 'pending';
 export type ComplianceResult = 'pass' | 'fail' | 'warning' | 'not_applicable';
@@ -34,6 +49,7 @@ export interface Inspection {
   is_imported: boolean;
   overall_result: OverallResult | null;
   risk_score: number | null;       // 0-100
+  compliance_score: number | null; // 0-100, computed by the backend
   notes: string | null;
   inspected_at: string | null;
   created_at: string;
@@ -52,6 +68,7 @@ export type InspectionInsert = {
   is_imported?: boolean;
   overall_result?: OverallResult | null;
   risk_score?: number | null;
+  compliance_score?: number | null;
   notes?: string | null;
   inspected_at?: string | null;
   created_at?: string;
@@ -73,6 +90,9 @@ export interface InspectionImage {
   file_size_bytes: number | null;
   mime_type: string | null;
   ocr_text: string | null;
+  ocr_confidence: number | null;   // 0-100, real mean word confidence from Tesseract
+  ocr_engine: string | null;
+  ocr_regions: unknown[] | null;   // word-level bounding boxes (normalized 0-1)
   created_at?: string;
   uploaded_at?: string;
 }
@@ -87,6 +107,9 @@ export type InspectionImageInsert = {
   file_size_bytes?: number | null;
   mime_type?: string | null;
   ocr_text?: string | null;
+  ocr_confidence?: number | null;
+  ocr_engine?: string | null;
+  ocr_regions?: unknown[] | null;
   created_at?: string;
   uploaded_at?: string;
 };
@@ -105,8 +128,10 @@ export interface ExtractedLabel {
   customer_care_details: string | null;
   country_of_origin: string | null;
   other_declarations: string | null;
+  product_information?: ProductInformation | null;
   raw_ocr_text: string | null;
-  extraction_confidence: number | null;
+  extraction_confidence: number | null; // 0-100 (raw, no normalization)
+  ocr_confidence: number | null;        // 0-100 real OCR confidence
   created_at: string;
   updated_at: string;
 }
@@ -124,8 +149,10 @@ export type ExtractedLabelInsert = {
   customer_care_details?: string | null;
   country_of_origin?: string | null;
   other_declarations?: string | null;
+  product_information?: ProductInformation | null;
   raw_ocr_text?: string | null;
   extraction_confidence?: number | null;
+  ocr_confidence?: number | null;
   created_at?: string;
   updated_at?: string;
 };

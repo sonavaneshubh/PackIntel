@@ -37,9 +37,9 @@ available, and also detects the standard Windows installation path.
 
 ### 4. Run Server
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-- API Base URL: `http://localhost:8000`
-- Interactive OpenAPI Docs: `http://localhost:8000/docs`
-- Health Endpoint: `http://localhost:8000/health`
+- API Base URL: `http://localhost:5000`
+- Interactive OpenAPI Docs: `http://localhost:5000/docs`
+- Health Endpoint: `http://localhost:5000/health`

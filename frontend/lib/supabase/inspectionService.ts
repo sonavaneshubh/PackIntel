@@ -17,6 +17,7 @@ import {
   InspectionReport,
   InspectionReportInsert,
   DashboardStats,
+  ProductInformation,
 } from '@/types/database';
 
 // ─── Inspection Number Generator ─────────────────────────────────────────────
@@ -233,6 +234,26 @@ export async function getMyProfile() {
 export function normalizeExtractedLabel(data: any): ExtractedLabel | null {
   if (!data) return null;
   const decl = (typeof data.declarations === 'object' && data.declarations) || {};
+  let storedDetails: ProductInformation = {};
+  if (typeof data.other_declarations === 'string') {
+    try {
+      const parsed = JSON.parse(data.other_declarations);
+      if (parsed?.product_information && typeof parsed.product_information === 'object') {
+        storedDetails = parsed.product_information;
+      }
+    } catch {
+      // Legacy rows contain plain declaration notes, not JSON.
+    }
+  }
+
+  // Confidence is stored in 0–100. Backward-compatible: legacy rows may be 0–1.
+  const normalizeConfidence = (value: unknown): number | null => {
+    if (value == null) return null;
+    const conf = Number(value);
+    if (!Number.isFinite(conf)) return null;
+    return conf > 0 && conf <= 1 ? Math.round(conf * 100) : conf;
+  };
+
   return {
     ...data,
     manufacturer_name: data.manufacturer_name || decl.manufacturer_name || decl.packer_name || null,
@@ -245,7 +266,10 @@ export function normalizeExtractedLabel(data: any): ExtractedLabel | null {
     customer_care_details: data.customer_care_details || decl.customer_care_details || decl.consumer_care || null,
     country_of_origin: data.country_of_origin || decl.country_of_origin || null,
     other_declarations: data.other_declarations || decl.other_declarations || null,
-    extraction_confidence: data.extraction_confidence ?? decl.extraction_confidence ?? 95,
+    product_information: data.product_information || decl.product_information || storedDetails,
+    raw_ocr_text: data.raw_ocr_text || decl.raw_ocr_text || null,
+    extraction_confidence: normalizeConfidence(data.extraction_confidence ?? decl.extraction_confidence),
+    ocr_confidence: normalizeConfidence(data.ocr_confidence ?? decl.ocr_confidence),
   } as ExtractedLabel;
 }
 
@@ -266,17 +290,23 @@ export async function saveExtractedLabel(
     month_year_packed: label.month_year_packed ?? null,
     customer_care_details: label.customer_care_details ?? null,
     country_of_origin: label.country_of_origin ?? null,
+    product_information: label.product_information ?? null,
 
     // Database column is NOT NULL
-    other_declarations: label.other_declarations ?? {},
+    other_declarations: label.other_declarations ?? '',
 
-    // Database constraint expects 0–1
+    raw_ocr_text: label.raw_ocr_text ?? null,
+
+    // Stored raw (0–100), no normalization.
     extraction_confidence:
       label.extraction_confidence == null
-        ? 0.95
-        : label.extraction_confidence > 1
-          ? label.extraction_confidence / 100
-          : label.extraction_confidence,
+        ? null
+        : Number(label.extraction_confidence),
+
+    ocr_confidence:
+      label.ocr_confidence == null
+        ? null
+        : Number(label.ocr_confidence),
   };
 
   for (let attempt = 0; attempt < 15; attempt++) {

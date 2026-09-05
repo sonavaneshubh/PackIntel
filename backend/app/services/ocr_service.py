@@ -3,7 +3,7 @@ import os
 import base64
 import logging
 import shutil
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import urllib.request
 from PIL import Image, ImageEnhance, ImageFilter, ImageStat
 from app.core.config import settings
@@ -15,6 +15,8 @@ try:
     HAS_PYTESSERACT = True
 except ImportError:
     HAS_PYTESSERACT = False
+
+_PSMOS = (3, 6, 11)
 
 
 def _resolve_tesseract_command() -> str | None:
@@ -123,22 +125,27 @@ class OCRService:
         raise ValueError(f"Could not load image from input: {image_input[:50]}")
 
     @staticmethod
-    def _preprocess_image(image: Image.Image) -> Image.Image:
-        """Preprocesses image for optimal OCR extraction."""
-        # Convert to RGB if palette/RGBA
+    def _preprocess_image(image: Image.Image) -> List[Image.Image]:
+        """Produce OCR variants of the image. The enhanced-grayscale variant is
+        primary; a binarized variant is generated only when contrast is poor."""
         if image.mode != "RGB":
             image = image.convert("RGB")
 
-        # Resize if too small for clear text detection
         w, h = image.size
         if w < 600 or h < 600:
             scale = max(600 / w, 600 / h)
             image = image.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
-        # Enhance contrast
         enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(1.5)
-        return image
+        enhanced = enhancer.enhance(1.5)
+
+        grayscale = enhanced.convert("L")
+        stats = ImageStat.Stat(grayscale)
+        variants = [grayscale]
+        if stats.stddev[0] < 40:
+            binary = grayscale.point(lambda p: 255 if p > 128 else 0, mode="1")
+            variants.append(binary.convert("L"))
+        return variants
 
     @staticmethod
     def _analyze_image_quality(image: Image.Image) -> Dict[str, Any]:
@@ -178,10 +185,83 @@ class OCRService:
         meaningful = "".join(character for character in text if character.isalnum())
         return len(meaningful) >= 4 and any(character.isalpha() for character in meaningful)
 
+    @staticmethod
+    def _run_tesseract_string(image: Image.Image, psm: int) -> str:
+        return pytesseract.image_to_string(image, config=f"--psm {psm}")
+
+    @staticmethod
+    def _run_tesseract_data(image: Image.Image, psm: int) -> Dict[str, Any]:
+        return pytesseract.image_to_data(
+            image, config=f"--psm {psm}", output_type=pytesseract.Output.DICT
+        )
+
+    @staticmethod
+    def _score_candidate(text: str) -> float:
+        words = [w for w in text.split() if w.isalnum() and any(c.isalpha() for c in w)]
+        alpha_len = sum(1 for c in text if c.isalpha())
+        return len(words) + 0.02 * alpha_len
+
+    @staticmethod
+    def _compute_confidence(data: Dict[str, Any]) -> float:
+        """Real confidence = mean word confidence from the data layer."""
+        confidences = []
+        for idx, text in enumerate(data.get("text", [])):
+            token = (text or "").strip()
+            if not token or not any(c.isalnum() for c in token):
+                continue
+            try:
+                level = int(data["level"][idx])
+            except (KeyError, ValueError, IndexError):
+                level = 5
+            if level != 5:
+                continue
+            try:
+                conf = float(data["conf"][idx])
+            except (KeyError, ValueError, IndexError):
+                continue
+            if conf >= 0:
+                confidences.append(conf)
+        if not confidences:
+            return 0.0
+        return round(sum(confidences) / len(confidences), 2)
+
+    @staticmethod
+    def _extract_regions(
+        data: Dict[str, Any], width: int, height: int
+    ) -> List[Dict[str, Any]]:
+        regions = []
+        for idx, text in enumerate(data.get("text", [])):
+            token = (text or "").strip()
+            if not token or not any(c.isalnum() for c in token):
+                continue
+            try:
+                conf = float(data["conf"][idx])
+            except (KeyError, ValueError, IndexError):
+                conf = -1
+            if conf < 0:
+                continue
+            try:
+                left = int(data["left"][idx])
+                top = int(data["top"][idx])
+                tw = int(data["width"][idx])
+                th = int(data["height"][idx])
+            except (KeyError, ValueError, IndexError):
+                continue
+            regions.append({
+                "text": token,
+                "left": round(min(1.0, max(0.0, left / width)), 4),
+                "top": round(min(1.0, max(0.0, top / height)), 4),
+                "width": round(min(1.0, max(0.0, tw / width)), 4),
+                "height": round(min(1.0, max(0.0, th / height)), 4),
+            })
+        return regions
+
     @classmethod
     def process_image(cls, image_url: str) -> Dict[str, Any]:
         """
-        OCR text extraction from product label images.
+        OCR text extraction from product label images with real confidence and
+        word-level regions. Runs multiple page-segmentation modes over enhanced
+        variants and keeps the most meaningful result.
         """
         if not image_url:
             raise ValueError("Image URL is required for OCR scanning.")
@@ -201,6 +281,7 @@ class OCRService:
                 "confidence": 0.0,
                 "engine": "tesseract",
                 "lines": [],
+                "regions": [],
                 "image_quality": "unusable",
                 "quality_reason": diagnostics["message"],
                 "quality": quality,
@@ -215,6 +296,7 @@ class OCRService:
                 "confidence": 0.0,
                 "engine": "tesseract",
                 "lines": [],
+                "regions": [],
                 "image_quality": "unusable",
                 "quality_reason": "Tesseract OCR is unavailable.",
                 "quality": quality,
@@ -222,7 +304,7 @@ class OCRService:
 
         pytesseract.pytesseract.tesseract_cmd = tesseract_command
         try:
-            processed_img = cls._preprocess_image(pil_img)
+            variants = cls._preprocess_image(pil_img)
         except (OSError, ValueError) as err:
             quality["quality"] = "poor"
             quality["reason"] = f"Image could not be prepared for OCR: {err}"
@@ -233,32 +315,47 @@ class OCRService:
                 "confidence": 0.0,
                 "engine": "tesseract",
                 "lines": [],
+                "regions": [],
                 "image_quality": "unusable",
                 "quality_reason": quality["reason"],
                 "quality": quality,
             }
+
         candidates = []
         ocr_warning = None
-        try:
-            for psm in (3, 6, 11):
+        for variant in variants:
+            for psm in _PSMOS:
                 try:
-                    text = pytesseract.image_to_string(processed_img, config=f"--psm {psm}").strip()
+                    text = cls._run_tesseract_string(variant, psm).strip()
                     if cls._meaningful_text(text):
-                        candidates.append(text)
+                        candidates.append((text, variant, psm))
                 except (pytesseract.TesseractError, OSError) as err:
                     ocr_warning = str(err)
-        except (pytesseract.TesseractError, OSError) as err:
-            logger.exception("OCR processing failed")
-            ocr_warning = str(err)
 
-        ocr_text = max(candidates, key=len, default="")
+        if not candidates:
+            ocr_text = ""
+            best_data = None
+        else:
+            candidates.sort(key=lambda c: cls._score_candidate(c[0]), reverse=True)
+            ocr_text, best_variant, best_psm = candidates[0]
+            try:
+                best_data = cls._run_tesseract_data(best_variant, best_psm)
+            except (pytesseract.TesseractError, OSError) as err:
+                logger.warning("OCR data layer failed: %s", err)
+                best_data = None
+
         if not ocr_text and ocr_warning:
             quality["reason"] = f"OCR warning: {ocr_warning}"
         elif not ocr_text and not quality["reason"]:
             quality["reason"] = "No readable package-label information was detected."
 
-        confidence = 85.0 if ocr_text else 0.0
-        engine_used = "tesseract"
+        if ocr_text and best_data:
+            width, height = pil_img.size
+            confidence = cls._compute_confidence(best_data)
+            regions = cls._extract_regions(best_data, width, height)
+        else:
+            confidence = 0.0
+            regions = []
 
         lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
 
@@ -267,12 +364,14 @@ class OCRService:
             "text": ocr_text,
             "raw_text": ocr_text,
             "confidence": confidence,
-            "engine": engine_used,
+            "engine": "tesseract",
             "lines": lines,
+            "regions": regions,
             "image_quality": "poor" if quality["quality"] == "poor" else ("usable" if ocr_text else "unusable"),
             "quality_reason": quality["reason"],
             "quality": quality,
         }
+
 
 def get_ocr_service() -> OCRService:
     """Factory function to get configured OCR service."""

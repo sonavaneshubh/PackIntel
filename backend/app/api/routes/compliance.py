@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from app.schemas.compliance import ComplianceCheckRequest, ComplianceCheckResponse, ComplianceRuleResult
+from app.schemas.compliance import ComplianceCheckRequest, ComplianceCheckResponse, ComplianceResult
 from app.services.compliance_service import ComplianceService
 from app.api.dependencies import get_current_user
 from app.core.config import settings
@@ -31,7 +31,9 @@ async def check_compliance(
 
     # Evaluate compliance using existing service
     response = ComplianceService.evaluate_compliance(
-        inspection_id=request.inspection_id, declarations=request.declarations
+        inspection_id=request.inspection_id,
+        declarations=request.declarations,
+        product_information=request.product_information,
     )
 
     # Save compliance results to Supabase if configured
@@ -41,13 +43,13 @@ async def check_compliance(
             for rule_result in response.results:
                 compliance_records.append({
                     "inspection_id": request.inspection_id,
-                    "rule_code": rule_result.rule_id,
+                    "rule_code": rule_result.rule_code,
                     "rule_name": rule_result.rule_name,
-                    "requirement": f"Rule {rule_result.rule_id}",
-                    "extracted_value": request.declarations.get(rule_result.rule_id.lower().replace('-', '_'), "") if request.declarations else "",
-                    "result": rule_result.status,
-                    "explanation": rule_result.details,
-                    "evidence": f"OCR extraction for {rule_result.rule_name}",
+                    "requirement": rule_result.requirement or "",
+                    "extracted_value": rule_result.extracted_value or "",
+                    "result": rule_result.result,
+                    "explanation": rule_result.explanation,
+                    "evidence": rule_result.evidence or "",
                     "created_at": datetime.utcnow().isoformat(),
                 })
 
@@ -60,7 +62,7 @@ async def check_compliance(
     return response
 
 
-@router.get("/compliance/results/{inspection_id}", response_model=List[ComplianceRuleResult])
+@router.get("/compliance/results/{inspection_id}", response_model=List[ComplianceResult])
 async def get_compliance_results(inspection_id: str, current_user: dict = Depends(get_current_user)):
     """
     GET /api/compliance/results/{inspection_id}

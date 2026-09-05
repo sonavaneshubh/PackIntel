@@ -74,17 +74,19 @@ export function OcrAnalysisView() {
 
         if (labels) {
           setExtractedLabel(labels);
+          // Real OCR confidence from the data layer; never fabricated.
+          const ocrConf = labels.ocr_confidence ?? labels.extraction_confidence ?? 0;
           // Build entities from extracted label
           const entityList: ExtractedEntity[] = [
-            { id: '1', name: 'Manufacturer', extractedValue: labels.manufacturer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-blue-500' },
-            { id: '2', name: 'Packer', extractedValue: labels.packer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-indigo-500' },
-            { id: '3', name: 'Importer', extractedValue: labels.importer_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-purple-500' },
-            { id: '4', name: 'Commodity Name', extractedValue: labels.commodity_name || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-green-500' },
-            { id: '5', name: 'Net Quantity', extractedValue: labels.net_quantity || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-teal-500' },
-            { id: '6', name: 'MRP', extractedValue: labels.mrp || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-amber-500' },
-            { id: '7', name: 'Month/Year Packed', extractedValue: labels.month_year_packed || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-orange-500' },
-            { id: '8', name: 'Consumer Care', extractedValue: labels.customer_care_details || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-pink-500' },
-            { id: '9', name: 'Country of Origin', extractedValue: labels.country_of_origin || 'Not detected', confidence: labels.extraction_confidence || 0, colorDot: 'bg-red-500' },
+            { id: '1', name: 'Manufacturer', extractedValue: labels.manufacturer_name || 'Not detected', confidence: ocrConf, colorDot: 'bg-blue-500' },
+            { id: '2', name: 'Packer', extractedValue: labels.packer_name || 'Not detected', confidence: ocrConf, colorDot: 'bg-indigo-500' },
+            { id: '3', name: 'Importer', extractedValue: labels.importer_name || 'Not detected', confidence: ocrConf, colorDot: 'bg-purple-500' },
+            { id: '4', name: 'Commodity Name', extractedValue: labels.commodity_name || 'Not detected', confidence: ocrConf, colorDot: 'bg-green-500' },
+            { id: '5', name: 'Net Quantity', extractedValue: labels.net_quantity || 'Not detected', confidence: ocrConf, colorDot: 'bg-teal-500' },
+            { id: '6', name: 'MRP', extractedValue: labels.mrp || 'Not detected', confidence: ocrConf, colorDot: 'bg-amber-500' },
+            { id: '7', name: 'Month/Year Packed', extractedValue: labels.month_year_packed || 'Not detected', confidence: ocrConf, colorDot: 'bg-orange-500' },
+            { id: '8', name: 'Consumer Care', extractedValue: labels.customer_care_details || 'Not detected', confidence: ocrConf, colorDot: 'bg-pink-500' },
+            { id: '9', name: 'Country of Origin', extractedValue: labels.country_of_origin || 'Not detected', confidence: ocrConf, colorDot: 'bg-red-500' },
           ].filter(e => e.extractedValue !== 'Not detected');
 
           setEntities(entityList);
@@ -99,18 +101,29 @@ export function OcrAnalysisView() {
     fetchData();
   }, [inspectionId]);
 
-  const handleEntityHover = (name: string) => {
-    const nameLower = name.toLowerCase();
-    if (nameLower.includes('mrp')) setActiveBoundingBoxId('mrp');
-    else if (nameLower.includes('qty') || nameLower.includes('quantity')) setActiveBoundingBoxId('net_qty');
-    else if (nameLower.includes('mfg') || nameLower.includes('manufacturer')) setActiveBoundingBoxId('mfg');
-    else if (nameLower.includes('packer')) setActiveBoundingBoxId('packer');
-    else if (nameLower.includes('commodity')) setActiveBoundingBoxId('commodity');
-    else if (nameLower.includes('net')) setActiveBoundingBoxId('net_qty');
-    else if (nameLower.includes('consumer')) setActiveBoundingBoxId('consumer');
-    else if (nameLower.includes('country')) setActiveBoundingBoxId('country');
-    else if (nameLower.includes('month') || nameLower.includes('packed')) setActiveBoundingBoxId('date');
-    else setActiveBoundingBoxId(null);
+  const handleEntityHover = (id: string) => {
+    setActiveBoundingBoxId(id);
+  };
+
+  // Real bounding boxes: match entity values to OCR word regions (normalized
+  // 0-1 coordinates stored by the backend) and draw the union box.
+  interface RegionBox { left: number; top: number; width: number; height: number; }
+  interface OcrRegion { text: string; left: number; top: number; width: number; height: number; }
+  const ocrRegions = (image?.ocr_regions || []) as OcrRegion[];
+  const regionBoxFor = (value: string): RegionBox | null => {
+    const target = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!target || target.length < 2) return null;
+    const matches = ocrRegions.filter(region => {
+      const regionText = (region.text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return regionText.length >= 2 && target.includes(regionText);
+    });
+    if (!matches.length) return null;
+    return {
+      left: Math.min(...matches.map(r => r.left)),
+      top: Math.min(...matches.map(r => r.top)),
+      width: Math.max(...matches.map(r => r.left + r.width)) - Math.min(...matches.map(r => r.left)),
+      height: Math.max(...matches.map(r => r.top + r.height)) - Math.min(...matches.map(r => r.top)),
+    };
   };
 
   if (isLoading) {
@@ -181,33 +194,32 @@ export function OcrAnalysisView() {
               </div>
             )}
 
-            {/* Overlay Bounding Boxes - simplified placeholder positions */}
+            {/* Overlay Bounding Boxes - derived from real OCR word regions */}
             {entities.length > 0 && (
-              <div className="absolute inset-0 p-4">
+              <div className="absolute inset-0">
                 {entities.map((entity, index) => {
-                  const positions = [
-                    { top: '15%', left: '60%', width: 'w-28', height: 'h-9' },    // MRP area
-                    { top: '35%', left: '20%', width: 'w-36', height: 'h-11' },   // Net Qty area
-                    { top: '60%', left: '10%', width: 'w-52', height: 'h-18' },   // Manufacturer area
-                    { top: '25%', left: '50%', width: 'w-40', height: 'h-10' },   // Commodity
-                    { top: '45%', left: '30%', width: 'w-32', height: 'h-12' },   // Date
-                    { top: '70%', left: '15%', width: 'w-48', height: 'h-14' },   // Consumer care
-                    { top: '80%', left: '20%', width: 'w-36', height: 'h-10' },   // Country
-                  ];
-                  const pos = positions[index % positions.length];
-                  const boxId = entity.name.toLowerCase().replace(/\s+/g, '_');
-                  const colors = ['border-primary bg-primary', 'border-teal-500 bg-teal-500', 'border-indigo-500 bg-indigo-500', 'border-green-500 bg-green-500', 'border-orange-500 bg-orange-500', 'border-pink-500 bg-pink-500', 'border-red-500 bg-red-500'];
+                  const box = regionBoxFor(entity.extractedValue);
+                  if (!box) return null;
+                  const colors = ['bg-primary', 'bg-teal-500', 'bg-indigo-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-red-500'];
                   const color = colors[index % colors.length];
+                  const isActive = activeBoundingBoxId === entity.id;
 
                   return (
                     <div
                       key={entity.id}
-                      onMouseEnter={() => setActiveBoundingBoxId(boxId)}
+                      onMouseEnter={() => setActiveBoundingBoxId(entity.id)}
                       onMouseLeave={() => setActiveBoundingBoxId(null)}
-                      className={`absolute ${pos.top} ${pos.left} ${pos.width} ${pos.height} border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${activeBoundingBoxId === boxId ? `${color}/40 scale-105 shadow-md` : `${color}/20 hover:${color}/30`}`}
+                      className={`absolute border-2 rounded flex items-start justify-start cursor-pointer transition-all group ${
+                        color.replace('bg-', 'border-')} ${isActive ? `${color}/40 scale-[1.02] shadow-md` : `${color}/20 hover:${color}/30`}`}
+                      style={{
+                        left: `${box.left * 100}%`,
+                        top: `${box.top * 100}%`,
+                        width: `${box.width * 100}%`,
+                        height: `${box.height * 100}%`,
+                      }}
                     >
-                      <div className={`bg-${color.split(' ')[0].replace('border-', '')} text-white text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap opacity-100 group-hover:-top-6 transition-all`}>
-                        {entity.name} - {entity.confidence}%
+                      <div className={`${color} text-white text-[10px] font-label-bold px-1.5 py-0.5 absolute -top-5 left-0 rounded-t shadow-xs whitespace-nowrap`}>
+                        {entity.name} - {Math.round(entity.confidence)}%
                       </div>
                     </div>
                   );
@@ -247,7 +259,7 @@ export function OcrAnalysisView() {
                 {entities.map((item) => (
                   <tr
                     key={item.id}
-                    onMouseEnter={() => handleEntityHover(item.name)}
+                    onMouseEnter={() => handleEntityHover(item.id)}
                     onMouseLeave={() => setActiveBoundingBoxId(null)}
                     className="hover:bg-surface-container-low transition-colors cursor-pointer group"
                   >

@@ -1,5 +1,7 @@
 // API Client module for Backend FastAPI integration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import type { ProductInformation } from '@/types/product';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export interface HealthResponse {
   status: string;
@@ -20,9 +22,35 @@ export interface ScanResponse {
   inspection_id: string;
   message: string;
   ocr_raw_text?: string;
+  ocr_engine?: string;
+  ocr_confidence: number;
+  ocr_regions?: Array<{
+    text: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }>;
+  // Canonical per-field extraction (single source of truth for the results grid).
+  product_information?: ProductInformation;
+  extraction_source?: 'ocr' | 'vision' | 'ocr+vision';
+  vision_used?: boolean;
+  vision_error?: string | null;
   extracted_declarations?: Record<string, unknown>;
+  extraction_confidence?: number;
+  compliance_results?: Array<{
+    rule_code: string;
+    rule_name: string;
+    result: 'pass' | 'fail' | 'warning' | 'not_applicable';
+    extracted_value?: string | null;
+    explanation: string;
+    evidence?: string | null;
+    requirement?: string | null;
+  }>;
   score: number;
   compliance_score: number;
+  risk_score: number;
+  overall_result: 'pass' | 'review' | 'fail';
   image_quality: string;
   quality_reason?: string;
   report?: string;
@@ -37,11 +65,15 @@ export interface ComplianceCheckResponse {
   inspection_id?: string;
   overall_result: 'pass' | 'review' | 'fail';
   risk_score: number;
+  compliance_score: number;
   results: Array<{
-    rule_id: string;
+    rule_code: string;
     rule_name: string;
-    status: 'pass' | 'fail' | 'warning';
-    details: string;
+    result: 'pass' | 'fail' | 'warning' | 'not_applicable';
+    extracted_value?: string | null;
+    explanation: string;
+    evidence?: string | null;
+    requirement?: string | null;
   }>;
 }
 
