@@ -34,12 +34,12 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-Backend development server: [http://localhost:8000](http://localhost:8000)
-API Interactive Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+Backend development server: [http://localhost:5000](http://localhost:5000)
+API Interactive Documentation: [http://localhost:5000/docs](http://localhost:5000/docs)
+Health Check: [http://localhost:5000/health](http://localhost:5000/health)
 
 ## Environment Variables
 
@@ -47,7 +47,7 @@ Health Check: [http://localhost:8000/health](http://localhost:8000/health)
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 ### Backend (`backend/.env`):

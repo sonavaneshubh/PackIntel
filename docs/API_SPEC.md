@@ -1,6 +1,6 @@
 # PackIntel Backend API Specification
 
-Base URL: `http://localhost:8000`
+Base URL: `http://localhost:5000`
 
 ## Endpoints Summary
 

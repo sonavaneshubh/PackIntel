@@ -41,11 +41,11 @@ python -m venv .venv
 # source .venv/bin/activate # Linux/macOS
 
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-The backend will run on `http://localhost:8000`.
-Open `http://localhost:8000/docs` for API documentation.
+The backend will run on `http://localhost:5000`.
+Open `http://localhost:5000/docs` for API documentation.
 
 ## Render deployment
 

@@ -18,7 +18,7 @@ PackIntel/
 1. **Frontend (`frontend/`)**:
    - Single-page & multi-page navigation for Inspector Dashboard, Image Upload / Scan UI, Inspection Details, Results, and Report Download.
    - Client-side Supabase Auth integration (Login, Logout, Session management).
-   - Consumes backend REST API endpoints (`http://localhost:8000`).
+   - Consumes backend REST API endpoints (`http://localhost:5000`).
 
 2. **Backend (`backend/`)**:
    - Built on Python 3.10+ and FastAPI.
