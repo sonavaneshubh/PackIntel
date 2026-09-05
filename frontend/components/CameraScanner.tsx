@@ -157,10 +157,7 @@ export function CameraScanner({ onScanComplete, onClose, isProcessing = false }:
     }
   }, [stopCamera]);
 
-  useEffect(() => {
-    void requestCameraPermission();
-    return stopCamera;
-  }, [requestCameraPermission, stopCamera]);
+  useEffect(() => stopCamera, [stopCamera]);
 
   useEffect(() => {
     if (!isReady || !videoRef.current || !streamRef.current) return;
@@ -174,6 +171,10 @@ export function CameraScanner({ onScanComplete, onClose, isProcessing = false }:
 
   const captureImage = useCallback(() => {
     if (captureLockedRef.current) return;
+    if (!isReady) {
+      void requestCameraPermission();
+      return;
+    }
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
@@ -203,7 +204,7 @@ export function CameraScanner({ onScanComplete, onClose, isProcessing = false }:
       stopCamera();
       onScanComplete?.(file);
     }, 'image/jpeg', 0.92);
-  }, [onScanComplete, stopCamera]);
+  }, [isReady, onScanComplete, requestCameraPermission, stopCamera]);
 
   useEffect(() => {
     if (!isReady || !autoCapture || captureLockedRef.current) return;
@@ -261,7 +262,7 @@ export function CameraScanner({ onScanComplete, onClose, isProcessing = false }:
         <div className="absolute bottom-6 left-6 rounded bg-black/50 px-2 py-1 font-mono text-[10px] text-white"><span className="mr-1 text-[#00bfa5]">●</span>{isReady ? 'CAM_FEED_ACTIVE // 60 FPS' : 'CAM_FEED_INACTIVE'}</div>
         {cameraError && <div className="absolute inset-x-4 bottom-4 flex items-center gap-2 rounded bg-red-950/90 px-3 py-2 text-xs text-red-100"><CircleAlert size={14} className="shrink-0" />{cameraError}</div>}
       </div>
-      <div className="mt-4 flex flex-wrap justify-between gap-3"><div className="flex flex-wrap gap-3"><Button variant="primary" onClick={captureImage} disabled={!isReady || captureLockedRef.current || isProcessing}><Camera size={16} />Capture &amp; Analyze</Button><Button variant="outline" onClick={() => setAutoCapture((enabled) => !enabled)} disabled={!isReady || isProcessing}>{autoCapture ? 'Auto Capture: On' : 'Auto Capture: Off'}</Button><Button variant="outline" onClick={() => void requestCameraPermission()} disabled={isProcessing}><RotateCcw size={16} />Retry Camera</Button></div><div className="flex gap-2"><Button variant="ghost" onClick={startAnotherScan} disabled={!capturedImageUrl || isProcessing} aria-label="Start another scan"><RotateCcw size={16} />New Scan</Button><Button variant="ghost" onClick={() => { stopCamera(); onClose?.(); }} disabled={isProcessing} aria-label="Close camera"><X size={16} />Close</Button></div></div>
+      <div className="mt-4 flex flex-wrap justify-between gap-3"><div className="flex flex-wrap gap-3"><Button variant="primary" onClick={captureImage} disabled={captureLockedRef.current || isProcessing}><Camera size={16} />{isReady ? 'Capture &amp; Analyze' : 'Enable Camera'}</Button><Button variant="outline" onClick={() => setAutoCapture((enabled) => !enabled)} disabled={!isReady || isProcessing}>{autoCapture ? 'Auto Capture: On' : 'Auto Capture: Off'}</Button><Button variant="outline" onClick={() => void requestCameraPermission()} disabled={isProcessing}><RotateCcw size={16} />Retry Camera</Button></div><div className="flex gap-2"><Button variant="ghost" onClick={startAnotherScan} disabled={!capturedImageUrl || isProcessing} aria-label="Start another scan"><RotateCcw size={16} />New Scan</Button><Button variant="ghost" onClick={() => { stopCamera(); onClose?.(); }} disabled={isProcessing} aria-label="Close camera"><X size={16} />Close</Button></div></div>
     </div>
   );
 }

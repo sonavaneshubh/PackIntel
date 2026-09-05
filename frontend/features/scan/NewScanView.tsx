@@ -28,14 +28,19 @@ export function NewScanView() {
     setUploadedImageUrl(URL.createObjectURL(file));
     setIsProcessing(true);
     const finalProductForm = {
-      ...productForm,
-      product_name: productForm.product_name.trim() || 'Scanned Packaged Commodity',
-      manufacturer_name: productForm.manufacturer_name.trim() || 'Pending AI Extraction',
+      product_name: 'Scanned Packaged Commodity',
+      brand_name: '',
+      manufacturer_name: '',
+      product_category: 'packaged commodity',
+      is_imported: false,
     };
 
-    const result = await runFullPipeline(selectedFile, finalProductForm);
-    setIsProcessing(false);
-    if (!result.success) setShowCamera(false);
+    try {
+      const result = await runFullPipeline(file, finalProductForm);
+      if (!result.success) setShowCamera(false);
+    } finally {
+      setIsProcessing(false);
+    }
   }, [runFullPipeline]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
